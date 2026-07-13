@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -19,6 +20,14 @@ class NotificationService {
 
   Future<void> init() async {
     tzdata.initializeTimeZones();
+    // Cihazın yerel saat dilimini ayarla; alınamazsa Europe/Istanbul'a düş.
+    // Bu yapılmadan tz.local'a erişince LateInitializationError fırlar.
+    try {
+      final tzInfo = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
+    } catch (_) {
+      tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
+    }
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(),
@@ -48,6 +57,20 @@ class NotificationService {
 
   Future<void> showNow(String title, String body) async {
     await _plugin.show(DateTime.now().millisecondsSinceEpoch % 100000, title, body, _details);
+  }
+
+  /// Tüm zamanlanmış hatırlatıcıları (su + takvim + akşam özeti) iptal eder.
+  /// Bildirim ayarları kapatıldığında AppState buradan geçer.
+  Future<void> cancelAllReminders() async {
+    for (var i = 0; i < 100; i++) {
+      await _plugin.cancel(_waterIdBase + i);
+    }
+    for (var i = 0; i < 200; i++) {
+      await _plugin.cancel(_calIdBase + i);
+    }
+    for (var i = 0; i < 10; i++) {
+      await _plugin.cancel(_eveningIdBase + i);
+    }
   }
 
   /// Su hatırlatıcılarını kurar: önümüzdeki 48 saat için, uyanık saatler

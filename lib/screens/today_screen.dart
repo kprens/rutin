@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../coach.dart';
 import '../l10n.dart';
 import '../store.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import 'coach_screen.dart';
 
 List<String> get _dowShort => T.en
     ? const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -48,9 +50,37 @@ class _TodayScreenState extends State<TodayScreen> {
     final pct = total == 0 ? 0.0 : done / total;
     final otherDayCount = s.tasks.length - total;
 
+    final coachTips = generateCoachTips(s);
+    final topTip = coachTips.first;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        Row(
+          children: [
+            SectionTitle(t('🧭 Koç', '🧭 Coach')),
+            const Spacer(),
+            TextButton(
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const CoachScreen())),
+              style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 0),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+              child: Text(
+                  coachTips.length > 1
+                      ? t('Tümü (${coachTips.length}) →', 'All (${coachTips.length}) →')
+                      : t('Aç →', 'Open →'),
+                  style: TextStyle(fontSize: 12, color: c.accent2)),
+            ),
+          ],
+        ),
+        GestureDetector(
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CoachScreen())),
+          child: CoachTipCard(tip: topTip),
+        ),
+        const SizedBox(height: 6),
         if (plan.isNotEmpty) ...[
           SectionTitle(t('Bugünün Programı', "Today's Plan")),
           ...plan.map((p) => EventRow(

@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../iap.dart';
 import '../l10n.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -15,6 +17,43 @@ class PaywallScreen extends StatefulWidget {
 
 class _PaywallScreenState extends State<PaywallScreen> {
   bool _yearly = true;
+  bool _done = false; // başarıdan sonra bir kez kapat
+
+  @override
+  void initState() {
+    super.initState();
+    Iap.instance.addListener(_onIap);
+  }
+
+  @override
+  void dispose() {
+    Iap.instance.removeListener(_onIap);
+    super.dispose();
+  }
+
+  void _onIap() {
+    if (!mounted || _done) return;
+    // Satın alma / geri yükleme başarılıysa Pro açılmıştır → kapat.
+    if (context.read<AppState>().isPro) {
+      _done = true;
+      toast(context, t('✅ Rutin Pro aktif! Teşekkürler 💛', '✅ Rutin Pro is active! Thank you 💛'));
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {});
+  }
+
+  Future<void> _onBuy() async {
+    final id = _yearly ? Iap.yearlyId : Iap.monthlyId;
+    if (Iap.instance.available && Iap.instance.productFor(id) != null) {
+      await Iap.instance.buy(id);
+    } else {
+      toast(
+          context,
+          t('Mağazaya şu an ulaşılamıyor. Satın alma, ürünler mağaza hesabında tanımlanınca aktif olur.',
+              'Store is unavailable right now. Purchases activate once products are set up in the store.'));
+    }
+  }
 
   List<(String, String, String)> get _features => T.en
       ? const [
@@ -101,8 +140,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
             c,
             selected: _yearly,
             title: t('Yıllık', 'Yearly'),
-            price: t('₺399,99 / yıl', '₺399.99 / year'),
-            sub: t('Ayda sadece ₺33 — %58 tasarruf', 'Just ₺33/month — save 58%'),
+            price:
+                '${Iap.instance.priceFor(Iap.yearlyId, '₺399,99')} / ${t('yıl', 'year')}',
+            sub: t('En avantajlı — %58 tasarruf', 'Best value — save 58%'),
             badge: t('EN POPÜLER', 'MOST POPULAR'),
             onTap: () => setState(() => _yearly = true),
           ),
@@ -111,7 +151,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
             c,
             selected: !_yearly,
             title: t('Aylık', 'Monthly'),
-            price: t('₺79,99 / ay', '₺79.99 / month'),
+            price:
+                '${Iap.instance.priceFor(Iap.monthlyId, '₺79,99')} / ${t('ay', 'month')}',
             sub: t('İstediğin zaman iptal et', 'Cancel anytime'),
             onTap: () => setState(() => _yearly = false),
           ),
@@ -121,24 +162,39 @@ class _PaywallScreenState extends State<PaywallScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
-            onPressed: () {
-              // TODO: Google Play Billing / RevenueCat entegrasyonu.
-              toast(context,
-                  t('Ödeme sistemi mağaza hesabı açıldığında bağlanacak 🙂', 'Payments will be enabled once the store account is live 🙂'));
-            },
-            child: Text(t('7 gün ücretsiz dene', 'Try 7 days free')),
+            onPressed: Iap.instance.purchasePending ? null : _onBuy,
+            child: Iap.instance.purchasePending
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : Text(t("Rutin Pro'ya geç", 'Get Rutin Pro')),
           ),
           const SizedBox(height: 6),
           Center(
             child: Text(
-              _yearly
-                  ? t('Deneme bitince ₺399,99/yıl. İstediğin an iptal.', 'Then ₺399.99/year. Cancel anytime.')
-                  : t('Deneme bitince ₺79,99/ay. İstediğin an iptal.', 'Then ₺79.99/month. Cancel anytime.'),
+              t('İstediğin an iptal edebilirsin. Abonelik mağaza hesabından yönetilir.',
+                  'Cancel anytime. Subscription is managed by your store account.'),
+              textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: c.muted),
             ),
           ),
-          const SizedBox(height: 16),
-          if (!s.isPro)
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton(
+              onPressed: () async {
+                await Iap.instance.restore();
+                if (context.mounted) {
+                  toast(context,
+                      t('Satın alımların kontrol ediliyor…', 'Checking your purchases…'));
+                }
+              },
+              child: Text(t('Satın alımları geri yükle', 'Restore purchases'),
+                  style: TextStyle(fontSize: 13, color: c.accent2)),
+            ),
+          ),
+          if (kDebugMode && !s.isPro)
             Center(
               child: TextButton(
                 onPressed: () {

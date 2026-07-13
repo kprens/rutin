@@ -14,12 +14,25 @@ class Streak {
   /// Bu alışkanlığın günlük maliyeti (₺). 0 = takip edilmiyor.
   double dailyCost;
 
+  /// Bu alışkanlığın günde çaldığı süre (saat). 0 = takip edilmiyor.
+  /// Yeni arayüzdeki "time reclaimed / saved" göstergesi için.
+  double dailyHours;
+
+  /// Görsel avatar emojisi (yeni arayüz recovery kartları). Boş = presetten türet.
+  String emoji;
+
+  /// Kaç kez sıfırlandı (nüksetme sayısı). Yeni arayüzde rozet/istatistik için.
+  int relapses;
+
   Streak({
     required this.id,
     required this.name,
     required this.start,
     this.bestDays = 0,
     this.dailyCost = 0,
+    this.dailyHours = 0,
+    this.emoji = '',
+    this.relapses = 0,
   });
 
   /// Takvim günü bazlı hesap: gece yarısı geçince gün +1 olur
@@ -38,12 +51,19 @@ class Streak {
   double get moneySaved =>
       DateTime.now().difference(start).inMinutes / 1440.0 * dailyCost;
 
+  /// Bırakıldığından beri geri kazanılan süre (saat).
+  double get hoursSaved =>
+      DateTime.now().difference(start).inMinutes / 1440.0 * dailyHours;
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
         'startMs': start.millisecondsSinceEpoch,
         'bestDays': bestDays,
         'dailyCost': dailyCost,
+        'dailyHours': dailyHours,
+        'emoji': emoji,
+        'relapses': relapses,
       };
 
   factory Streak.fromJson(Map<String, dynamic> j) => Streak(
@@ -52,6 +72,9 @@ class Streak {
         start: DateTime.fromMillisecondsSinceEpoch(j['startMs'] as int),
         bestDays: (j['bestDays'] ?? 0) as int,
         dailyCost: ((j['dailyCost'] ?? 0) as num).toDouble(),
+        dailyHours: ((j['dailyHours'] ?? 0) as num).toDouble(),
+        emoji: (j['emoji'] ?? '') as String,
+        relapses: (j['relapses'] ?? 0) as int,
       );
 }
 
@@ -63,17 +86,31 @@ class TaskItem {
   /// Boş liste = her gün.
   List<int> days;
 
-  TaskItem({required this.id, required this.name, List<int>? days})
-      : days = days ?? [];
+  /// Görsel avatar emojisi (yeni arayüz habit kartları). Boş = varsayılan.
+  String emoji;
+
+  /// İsteğe bağlı kategori etiketi (Mindfulness, Fitness…). Boş = yok.
+  String category;
+
+  TaskItem({
+    required this.id,
+    required this.name,
+    List<int>? days,
+    this.emoji = '',
+    this.category = '',
+  }) : days = days ?? [];
 
   bool activeOn(int mondayIndex) => days.isEmpty || days.contains(mondayIndex);
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'days': days};
+  Map<String, dynamic> toJson() =>
+      {'id': id, 'name': name, 'days': days, 'emoji': emoji, 'category': category};
 
   factory TaskItem.fromJson(Map<String, dynamic> j) => TaskItem(
         id: j['id'] as int,
         name: j['name'] as String,
         days: ((j['days'] ?? []) as List).map((e) => e as int).toList(),
+        emoji: (j['emoji'] ?? '') as String,
+        category: (j['category'] ?? '') as String,
       );
 }
 
@@ -112,6 +149,22 @@ class EventItem {
         date: j['date'] as String,
         time: (j['time'] ?? '') as String,
         name: j['name'] as String,
+      );
+}
+
+/// Tek bir su kaydı — yeni arayüzdeki "Today's Log" listesi için.
+/// Miktar (ml) ve saat ('HH:mm') tutulur; güne göre gruplanır.
+class WaterLogEntry {
+  final int ml;
+  final String time; // 'HH:mm'
+
+  WaterLogEntry({required this.ml, required this.time});
+
+  Map<String, dynamic> toJson() => {'ml': ml, 'time': time};
+
+  factory WaterLogEntry.fromJson(Map<String, dynamic> j) => WaterLogEntry(
+        ml: (j['ml'] ?? 0) as int,
+        time: (j['time'] ?? '') as String,
       );
 }
 

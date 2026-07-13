@@ -37,6 +37,23 @@ class AppState extends ChangeNotifier {
   String themeId = 'alev';
   bool isPro = false;
 
+  // Kullanıcı profili (yeni arayüz)
+  String userName = '';
+  int? createdAtMs; // hesabın oluşturulma zamanı ("Member since")
+
+  // Su kayıt defteri: 'yyyy-MM-dd' -> [ {ml, time} ]
+  Map<String, List<WaterLogEntry>> waterLog = {};
+
+  // Ayarlar (yeni arayüz kalıcı toggle'ları)
+  bool pushNotifications = true;
+  bool dailyReminders = true;
+  bool sounds = false;
+  bool haptics = true;
+  bool weekStartsMonday = true;
+
+  /// Dil override: null = cihaz dili, 'tr' / 'en' = manuel seçim.
+  String? localeOverride;
+
   // Retention
   bool onboarded = false;
   List<String> checklistFullDays = []; // listenin tamamlandığı günler
@@ -111,6 +128,19 @@ class AppState extends ChangeNotifier {
       }
       themeId = (data['themeId'] ?? 'alev') as String;
       isPro = (data['isPro'] ?? false) as bool;
+      userName = (data['userName'] ?? '') as String;
+      createdAtMs = data['createdAtMs'] as int?;
+      waterLog = ((data['waterLog'] ?? {}) as Map).map((k, v) => MapEntry(
+          k as String,
+          (v as List)
+              .map((e) => WaterLogEntry.fromJson(Map<String, dynamic>.from(e)))
+              .toList()));
+      pushNotifications = (data['pushNotifications'] ?? true) as bool;
+      dailyReminders = (data['dailyReminders'] ?? true) as bool;
+      sounds = (data['sounds'] ?? false) as bool;
+      haptics = (data['haptics'] ?? true) as bool;
+      weekStartsMonday = (data['weekStartsMonday'] ?? true) as bool;
+      localeOverride = data['localeOverride'] as String?;
       onboarded = (data['onboarded'] ?? false) as bool;
       checklistFullDays = ((data['checklistFullDays'] ?? []) as List)
           .map((e) => e as String)
@@ -122,12 +152,26 @@ class AppState extends ChangeNotifier {
           .toSet();
       reviewAsked = (data['reviewAsked'] ?? false) as bool;
     }
+    if (localeOverride != null) T.en = localeOverride == 'en';
     currentTheme = themeById(themeId);
     dailyRollover();
-    await notifications.scheduleWaterReminders(water.intervalMinutes);
-    await notifications.scheduleCalendarReminders(weekly, events);
-    _scheduleEvening();
+    await applyNotificationSettings();
     notifyListeners();
+  }
+
+  /// Bildirim ayarlarının (push + günlük hatırlatma) izin verdiği durumda
+  /// su, takvim ve akşam özeti hatırlatıcılarını (yeniden) kurar; aksi halde
+  /// hepsini iptal eder. Zamanlanan tüm hatırlatıcılar tek noktadan geçer.
+  bool get remindersEnabled => pushNotifications && dailyReminders;
+
+  Future<void> applyNotificationSettings() async {
+    if (remindersEnabled) {
+      await notifications.scheduleWaterReminders(water.intervalMinutes);
+      await notifications.scheduleCalendarReminders(weekly, events);
+      _scheduleEvening();
+    } else {
+      await notifications.cancelAllReminders();
+    }
   }
 
   Future<void> _save() async {
@@ -139,8 +183,18 @@ class AppState extends ChangeNotifier {
       'weekly': weekly.map((e) => e.toJson()).toList(),
       'events': events.map((e) => e.toJson()).toList(),
       'water': water.toJson(),
+      'waterLog': waterLog
+          .map((k, v) => MapEntry(k, v.map((e) => e.toJson()).toList())),
       'themeId': themeId,
       'isPro': isPro,
+      'userName': userName,
+      'createdAtMs': createdAtMs,
+      'pushNotifications': pushNotifications,
+      'dailyReminders': dailyReminders,
+      'sounds': sounds,
+      'haptics': haptics,
+      'weekStartsMonday': weekStartsMonday,
+      'localeOverride': localeOverride,
       'onboarded': onboarded,
       'checklistFullDays': checklistFullDays,
       'celebrated': celebrated,
@@ -166,6 +220,7 @@ class AppState extends ChangeNotifier {
   }
 
   void _scheduleEvening() {
+    if (!remindersEnabled) return;
     final total = todaysTasks.length;
     notifications.scheduleEveningSummary(t(
         '✅ $doneCount/$total görev • 💧 ${water.count}/${water.goal} bardak — günü tamamla, serini koru!',
@@ -173,7 +228,9 @@ class AppState extends ChangeNotifier {
   }
 
   void _calendarChanged() {
-    notifications.scheduleCalendarReminders(weekly, events);
+    if (remindersEnabled) {
+      notifications.scheduleCalendarReminders(weekly, events);
+    }
     _save();
     notifyListeners();
   }
@@ -191,26 +248,53 @@ class AppState extends ChangeNotifier {
         m.remove(keys.removeAt(0));
       }
     }
+    final logKeys = waterLog.keys.toList()..sort();
+    while (logKeys.length > 60) {
+      waterLog.remove(logKeys.removeAt(0));
+    }
     _save();
   }
 
   // ---------- Streak ----------
 
-  void addStreak(String name, {DateTime? start, double dailyCost = 0}) {
+  void addStreak(String name,
+      {DateTime? start,
+      double dailyCost = 0,
+      double dailyHours = 0,
+      String emoji = ''}) {
     streaks.add(Streak(
       id: DateTime.now().millisecondsSinceEpoch,
       name: name,
       start: start ?? DateTime.now(),
       dailyCost: dailyCost,
+      dailyHours: dailyHours,
+      emoji: emoji,
     ));
     _save();
     notifyListeners();
   }
 
-  /// Sıfırlar; sıfırlanan seri gün sayısını döndürür.
+  /// Var olan bir recovery/streak kaydını günceller.
+  void editStreak(Streak s,
+      {String? name,
+      DateTime? start,
+      double? dailyCost,
+      double? dailyHours,
+      String? emoji}) {
+    if (name != null) s.name = name;
+    if (start != null) s.start = start;
+    if (dailyCost != null) s.dailyCost = dailyCost;
+    if (dailyHours != null) s.dailyHours = dailyHours;
+    if (emoji != null) s.emoji = emoji;
+    _save();
+    notifyListeners();
+  }
+
+  /// Sıfırlar; sıfırlanan seri gün sayısını döndürür. Nüksetme sayacını artırır.
   int resetStreak(Streak s) {
     final days = s.days;
     if (days > s.bestDays) s.bestDays = days;
+    s.relapses++;
     s.start = DateTime.now();
     _save();
     notifyListeners();
@@ -240,11 +324,64 @@ class AppState extends ChangeNotifier {
   int get doneCount =>
       todaysDone.where((id) => todaysTasks.any((t) => t.id == id)).length;
 
-  void addTask(String name, {List<int>? days}) {
+  void addTask(String name,
+      {List<int>? days, String emoji = '', String category = ''}) {
     tasks.add(TaskItem(
-        id: DateTime.now().millisecondsSinceEpoch, name: name, days: days));
+        id: DateTime.now().millisecondsSinceEpoch,
+        name: name,
+        days: days,
+        emoji: emoji,
+        category: category));
     _save();
     notifyListeners();
+  }
+
+  /// Var olan bir görevi günceller (yeni arayüz habit düzenleme).
+  void editTask(TaskItem task,
+      {String? name, List<int>? days, String? emoji, String? category}) {
+    if (name != null) task.name = name;
+    if (days != null) task.days = days;
+    if (emoji != null) task.emoji = emoji;
+    if (category != null) task.category = category;
+    _save();
+    notifyListeners();
+  }
+
+  /// Bir görevin bugünden geriye kesintisiz tamamlanma serisi (gün).
+  /// Yalnızca görevin aktif olduğu günler sayılır; aktif olmayan günler
+  /// seriyi bozmaz, atlanır. Bugün henüz işaretlenmediyse dünden başlar.
+  int taskStreak(TaskItem task) {
+    var streak = 0;
+    var day = DateTime.now();
+    // Bugün aktif ve işaretlenmemişse seriyi dünden say (henüz gün bitmedi).
+    if (task.activeOn(mondayIndex(day)) &&
+        !(doneByDate[todayKey(day)] ?? const <int>[]).contains(task.id)) {
+      day = day.subtract(const Duration(days: 1));
+    }
+    // Emniyet sınırı: en fazla 2000 gün geri bak.
+    for (var i = 0; i < 2000; i++) {
+      if (!task.activeOn(mondayIndex(day))) {
+        day = day.subtract(const Duration(days: 1));
+        continue;
+      }
+      if ((doneByDate[todayKey(day)] ?? const <int>[]).contains(task.id)) {
+        streak++;
+        day = day.subtract(const Duration(days: 1));
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  /// Tüm görevler arasındaki en uzun aktif seri.
+  int get maxHabitStreak {
+    var best = 0;
+    for (final task in tasks) {
+      final st = taskStreak(task);
+      if (st > best) best = st;
+    }
+    return best;
   }
 
   void toggleTask(TaskItem task) {
@@ -254,7 +391,7 @@ class AppState extends ChangeNotifier {
     } else {
       done.add(task.id);
       final today = todaysTasks;
-      if (today.isNotEmpty && doneCount == today.length) {
+      if (today.isNotEmpty && doneCount == today.length && pushNotifications) {
         notifications.showNow(t('🎉 Tebrikler!', '🎉 Congrats!'),
             t('Bugünün tüm görevlerini tamamladın.', 'You completed all of today\'s tasks.'));
       }
@@ -309,7 +446,12 @@ class AppState extends ChangeNotifier {
 
   // ---------- Onboarding ----------
 
-  void finishOnboarding({String? streakName, List<String> sampleTasks = const []}) {
+  void finishOnboarding(
+      {String? streakName,
+      List<String> sampleTasks = const [],
+      String? name}) {
+    createdAtMs ??= DateTime.now().millisecondsSinceEpoch;
+    if (name != null && name.trim().isNotEmpty) userName = name.trim();
     if (streakName != null && streakName.trim().isNotEmpty) {
       streaks.add(Streak(
           id: DateTime.now().millisecondsSinceEpoch,
@@ -343,7 +485,7 @@ class AppState extends ChangeNotifier {
     dailyRollover();
     water.count = (water.count + n).clamp(0, 99);
     waterByDate[todayKey()] = water.count;
-    if (n > 0 && water.count == water.goal) {
+    if (n > 0 && water.count == water.goal && pushNotifications) {
       notifications.showNow(t('💧 Hedef tamam!', '💧 Goal reached!'),
           t('Bugünkü su hedefine ulaştın. Süpersin!', 'You hit today\'s water goal. Awesome!'));
     }
@@ -352,15 +494,44 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void changeGoal(int n) {
-    water.goal = (water.goal + n).clamp(1, 20);
-    _save();
-    notifyListeners();
+  /// Bugünün su kayıt defteri (en yeni önce).
+  List<WaterLogEntry> get todaysWaterLog =>
+      waterLog.putIfAbsent(todayKey(), () => []);
+
+  /// Belirli ml miktarında su ekler: bardak sayacını (250 ml/bardak, en az 1)
+  /// artırır ve kayıt defterine tam ml değerini işler. Yeni arayüz için.
+  void addWaterMl(int ml) {
+    if (ml <= 0) return;
+    dailyRollover();
+    final glasses = (ml / 250).round().clamp(1, 99);
+    final now = DateTime.now();
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    todaysWaterLog.insert(0, WaterLogEntry(ml: ml, time: time));
+    addWater(glasses); // sayaç + hedef bildirimi + kaydet + notify
+  }
+
+  /// Bir su kaydını geri alır (sayaç ve defterden düşer).
+  void removeWaterLog(WaterLogEntry e) {
+    final log = todaysWaterLog;
+    if (log.remove(e)) {
+      final glasses = (e.ml / 250).round().clamp(1, 99);
+      addWater(-glasses);
+    }
   }
 
   Future<void> setWaterInterval(int minutes) async {
     water.intervalMinutes = minutes;
-    await notifications.scheduleWaterReminders(minutes);
+    // Hatırlatıcılar kapalıysa hiçbir şey zamanlama (0 = iptal).
+    await notifications.scheduleWaterReminders(remindersEnabled ? minutes : 0);
+    _save();
+    notifyListeners();
+  }
+
+  /// Günlük su hedefini [delta] bardak artırır/azaltır (1–20 arası).
+  /// Yeni arayüzdeki +/- hedef butonları buradan geçer.
+  void changeGoal(int delta) {
+    water.goal = (water.goal + delta).clamp(1, 20);
     _save();
     notifyListeners();
   }
@@ -434,5 +605,90 @@ class AppState extends ChangeNotifier {
       final key = todayKey(day);
       return (key: key, day: day, count: waterByDate[key] ?? 0);
     });
+  }
+
+  // ---------- Profil / Ayarlar / Hesap ----------
+
+  void setUserName(String name) {
+    userName = name.trim();
+    _save();
+    notifyListeners();
+  }
+
+  /// Manuel dil seçimi. null = cihaz diline geri dön.
+  void setLanguage(String? code) {
+    localeOverride = code;
+    if (code != null) {
+      T.en = code == 'en';
+    } else {
+      T.init();
+    }
+    _save();
+    notifyListeners();
+  }
+
+  /// Yeni arayüz ayar toggle'larını kaydeder.
+  void setSettings({
+    bool? push,
+    bool? daily,
+    bool? sounds,
+    bool? haptics,
+    bool? weekStartsMonday,
+  }) {
+    if (push != null) pushNotifications = push;
+    if (daily != null) dailyReminders = daily;
+    if (sounds != null) this.sounds = sounds;
+    if (haptics != null) this.haptics = haptics;
+    if (weekStartsMonday != null) this.weekStartsMonday = weekStartsMonday;
+    _save();
+    notifyListeners();
+    // Bildirim toggle'ları değiştiyse gerçek zamanlamayı hemen uygula:
+    // açıldıysa yeniden kur, kapatıldıysa tüm hatırlatıcıları iptal et.
+    if (push != null || daily != null) {
+      applyNotificationSettings();
+    }
+  }
+
+  /// "Member since" için formatlanabilir tarih.
+  DateTime? get memberSince =>
+      createdAtMs == null ? null : DateTime.fromMillisecondsSinceEpoch(createdAtMs!);
+
+  /// Uygulamayı ilk kez açtığı günden bu yana geçen aktif gün sayısı.
+  int get daysActive {
+    if (createdAtMs == null) return 0;
+    final start = DateTime.fromMillisecondsSinceEpoch(createdAtMs!);
+    final a = DateTime(start.year, start.month, start.day);
+    final b = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+    return b.difference(a).inDays + 1;
+  }
+
+  /// Çıkış: onboarding'e döner, veriyi silmez.
+  Future<void> signOut() async {
+    onboarded = false;
+    await _save();
+    notifyListeners();
+  }
+
+  /// Hesabı ve tüm yerel veriyi tamamen siler.
+  Future<void> wipeAllData() async {
+    streaks = [];
+    tasks = [];
+    doneByDate = {};
+    waterByDate = {};
+    waterLog = {};
+    weekly = [];
+    events = [];
+    water = WaterState(date: todayKey());
+    checklistFullDays = [];
+    celebrated = {};
+    sharedStreakIds = {};
+    isPro = false;
+    onboarded = false;
+    userName = '';
+    createdAtMs = null;
+    reviewAsked = false;
+    await _save();
+    await notifications.cancelAllReminders();
+    notifyListeners();
   }
 }

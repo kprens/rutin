@@ -72,10 +72,66 @@ class _StreaksScreenState extends State<StreaksScreen> {
             padding: const EdgeInsets.all(14),
             child: Column(
               children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(t('Hazır seçenekler', 'Quick picks'),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: c.muted)),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: addictionPresets().map((a) {
+                    final on =
+                        _nameCtrl.text.trim().toLowerCase() == a.$2.toLowerCase();
+                    return GestureDetector(
+                      onTap: () => setState(() {
+                        if (on) {
+                          _nameCtrl.clear();
+                        } else {
+                          _nameCtrl.text = a.$2;
+                        }
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: on
+                              ? c.accent.withValues(alpha: 0.15)
+                              : c.card2,
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                              color: on ? c.accent : c.cardBorder,
+                              width: on ? 2 : 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(a.$1, style: const TextStyle(fontSize: 14)),
+                            const SizedBox(width: 5),
+                            Text(a.$2,
+                                style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: on
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: on ? c.accent : c.text)),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _nameCtrl,
                   decoration:
                       InputDecoration(hintText: t('Neyi bırakıyorsun? (örn. Sigara)', 'What are you quitting? (e.g. Smoking)')),
+                  onChanged: (_) => setState(() {}),
                   onSubmitted: (_) => _add(s),
                 ),
                 const SizedBox(height: 8),
