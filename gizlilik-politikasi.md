@@ -1,6 +1,11 @@
+---
+title: Rutin — Gizlilik Politikası
+layout: default
+---
+
 # Rutin — Gizlilik Politikası
 
-Son güncelleme: 11 Temmuz 2026
+Son güncelleme: 24 Temmuz 2026
 
 Bu politika, Rutin mobil uygulamasının ("Uygulama") hangi verileri topladığını, nasıl kullandığını ve haklarınızı açıklar. Uygulamayı kullanarak bu politikayı kabul etmiş olursunuz.
 
@@ -10,18 +15,35 @@ Rutin, alışkanlık verilerinizi (streak sayaçları, günlük görevler, su ta
 
 ## Hesap oluşturursanız toplanan veriler
 
-Arkadaşlar özelliğini kullanmak için isteğe bağlı bir hesap oluşturabilirsiniz. Bu durumda şunlar sunucularımızda (Supabase, AB — Frankfurt bölgesi) saklanır:
+Arkadaşlar özelliğini kullanmak için isteğe bağlı bir hesap oluşturabilirsiniz — e-posta/parola ile ya da Google veya Apple hesabınızla giriş yaparak. Bu durumda şunlar sunucularımızda (Supabase, AB — Frankfurt bölgesi) saklanır:
 
 - E-posta adresiniz (giriş için)
+- Google/Apple ile giriş yaptıysanız, bu sağlayıcıların paylaştığı temel profil bilgisi (ad, e-posta)
 - Seçtiğiniz kullanıcı adı ve davet kodunuz
 - Arkadaşlık bağlantılarınız
 - **Yalnızca paylaşmayı seçtiğiniz** streak özetleri (isim, başlangıç tarihi, en iyi seri)
+- **Yalnızca siz gönderdiyseniz** destek (panik) sinyalleri: gönderdiğiniz an ve ilgili bırakma kaydının adı
 
 Paylaşımı istediğiniz an kapatabilirsiniz; kapattığınızda ilgili veri sunucudan silinir. Paylaşılan veriler yalnızca onayladığınız arkadaşlarınız tarafından görülebilir; herkese açık değildir.
+
+## Kriz kayıtları ve kişisel notlarınız
+
+Uygulama, size özel içgörüler (risk pencereniz, tetikleyici haritanız) üretebilmek için şunları kaydeder:
+
+- Bir kriz anını atlattığınızda ya da bir nüks kaydettiğinizde, **isteğe bağlı** olarak seçtiğiniz tetikleyici (stres, yorgunluk, sosyal ortam gibi) ve bunun zamanı. Bu soruyu her zaman atlayabilirsiniz.
+- "Geleceğe Mektup" özelliğinde kendinize yazdığınız metin.
+
+Bu kayıtlar **cihazınızda** saklanır. Hesap oluşturduysanız, diğer alışkanlık verilerinizle birlikte yalnızca **size ait** hesap alanında yedeklenir; arkadaşlarınız dahil hiç kimseyle paylaşılmaz ve reklam amacıyla kullanılmaz. Verilerinizi Ayarlar → "Verini Dışa Aktar" ile istediğiniz an indirebilirsiniz.
+
+Uygulamada gösterilen iyileşme kilometre taşları genel bilgilendirme amaçlıdır; tıbbi tavsiye, tanı veya tedavi değildir ve tarafımızca sağlık verisi olarak işlenmez.
 
 ## Hesap silme
 
 Hesabınızı Uygulama içinden (Arkadaşlar → Hesabı kalıcı olarak sil) istediğiniz an silebilirsiniz. Silme işlemi geri alınamaz; e-postanız, profiliniz, arkadaşlıklarınız ve paylaşılan tüm verileriniz sunucudan kalıcı olarak kaldırılır. Cihazınızdaki yerel veriler etkilenmez.
+
+## Satın almalar
+
+Rutin Pro aboneliği, cihazınıza göre Google Play Faturalandırma (Android) veya Apple App Store / StoreKit (iOS) üzerinden satın alınır. **Kart/ödeme bilgilerinizi hiçbir zaman görmeyiz veya saklamayız** — bu bilgileri Google ya da Apple yönetir. Satın alımınızın geçerliliğini doğrulamak için ilgili mağazanın ürettiği satın alma jetonu/makbuzu (kart bilgisi içermez) sunucumuzdaki doğrulama servisine iletilir.
 
 ## Reklamlar
 
@@ -33,11 +55,15 @@ Uygulama kararlılığını iyileştirmek için anonim çökme raporları (cihaz
 
 ## Toplamadıklarımız
 
-Konum verisi, rehber, fotoğraflar, sağlık verileri toplamayız. Verilerinizi üçüncü taraflara satmayız ve pazarlama amacıyla paylaşmayız.
+Konum verisi, rehber, fotoğraf, mikrofon kaydı veya HealthKit/Google Fit gibi kaynaklardan sağlık verisi toplamayız. Verilerinizi üçüncü taraflara satmayız ve pazarlama amacıyla paylaşmayız. Kendi girdiğiniz alışkanlık, bırakma ve kriz kayıtlarınız yalnızca uygulamanın size sunduğu işlevler için kullanılır.
 
 ## Çocukların gizliliği
 
 Uygulama 13 yaş altı çocuklara yönelik değildir ve onlardan bilerek veri toplamaz.
+
+## Haklarınız
+
+Türkiye'de 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ve ilgili bölgelerde Genel Veri Koruma Tüzüğü (GDPR) kapsamında; verilerinize erişme, düzeltilmesini isteme, silinmesini talep etme ve işlemeye itiraz etme hakkına sahipsiniz. Bu haklarınızı aşağıdaki e-posta adresinden bize ulaşarak ya da Uygulama içinden doğrudan hesap silme işlemini gerçekleştirerek kullanabilirsiniz.
 
 ## Değişiklikler
 
