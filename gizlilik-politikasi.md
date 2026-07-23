@@ -5,7 +5,7 @@ layout: default
 
 # Rutin — Gizlilik Politikası
 
-Son güncelleme: 16 Temmuz 2026
+Son güncelleme: 24 Temmuz 2026
 
 Bu politika, Rutin mobil uygulamasının ("Uygulama") hangi verileri topladığını, nasıl kullandığını ve haklarınızı açıklar. Uygulamayı kullanarak bu politikayı kabul etmiş olursunuz.
 
@@ -22,8 +22,20 @@ Arkadaşlar özelliğini kullanmak için isteğe bağlı bir hesap oluşturabili
 - Seçtiğiniz kullanıcı adı ve davet kodunuz
 - Arkadaşlık bağlantılarınız
 - **Yalnızca paylaşmayı seçtiğiniz** streak özetleri (isim, başlangıç tarihi, en iyi seri)
+- **Yalnızca siz gönderdiyseniz** destek (panik) sinyalleri: gönderdiğiniz an ve ilgili bırakma kaydının adı
 
 Paylaşımı istediğiniz an kapatabilirsiniz; kapattığınızda ilgili veri sunucudan silinir. Paylaşılan veriler yalnızca onayladığınız arkadaşlarınız tarafından görülebilir; herkese açık değildir.
+
+## Kriz kayıtları ve kişisel notlarınız
+
+Uygulama, size özel içgörüler (risk pencereniz, tetikleyici haritanız) üretebilmek için şunları kaydeder:
+
+- Bir kriz anını atlattığınızda ya da bir nüks kaydettiğinizde, **isteğe bağlı** olarak seçtiğiniz tetikleyici (stres, yorgunluk, sosyal ortam gibi) ve bunun zamanı. Bu soruyu her zaman atlayabilirsiniz.
+- "Geleceğe Mektup" özelliğinde kendinize yazdığınız metin.
+
+Bu kayıtlar **cihazınızda** saklanır. Hesap oluşturduysanız, diğer alışkanlık verilerinizle birlikte yalnızca **size ait** hesap alanında yedeklenir; arkadaşlarınız dahil hiç kimseyle paylaşılmaz ve reklam amacıyla kullanılmaz. Verilerinizi Ayarlar → "Verini Dışa Aktar" ile istediğiniz an indirebilirsiniz.
+
+Uygulamada gösterilen iyileşme kilometre taşları genel bilgilendirme amaçlıdır; tıbbi tavsiye, tanı veya tedavi değildir ve tarafımızca sağlık verisi olarak işlenmez.
 
 ## Hesap silme
 
@@ -31,7 +43,7 @@ Hesabınızı Uygulama içinden (Arkadaşlar → Hesabı kalıcı olarak sil) is
 
 ## Satın almalar
 
-Rutin Pro aboneliği Google Play Faturalandırma üzerinden satın alınır. **Kart/ödeme bilgilerinizi hiçbir zaman görmeyiz veya saklamayız** — bu bilgileri Google Play yönetir. Satın alımınızın geçerliliğini doğrulamak için Google Play'in ürettiği satın alma jetonu (kart bilgisi içermez) sunucumuzdaki doğrulama servisine iletilir.
+Rutin Pro aboneliği, cihazınıza göre Google Play Faturalandırma (Android) veya Apple App Store / StoreKit (iOS) üzerinden satın alınır. **Kart/ödeme bilgilerinizi hiçbir zaman görmeyiz veya saklamayız** — bu bilgileri Google ya da Apple yönetir. Satın alımınızın geçerliliğini doğrulamak için ilgili mağazanın ürettiği satın alma jetonu/makbuzu (kart bilgisi içermez) sunucumuzdaki doğrulama servisine iletilir.
 
 ## Reklamlar
 
@@ -43,7 +55,7 @@ Uygulama kararlılığını iyileştirmek için anonim çökme raporları (cihaz
 
 ## Toplamadıklarımız
 
-Konum verisi, rehber, fotoğraflar, sağlık verileri toplamayız. Verilerinizi üçüncü taraflara satmayız ve pazarlama amacıyla paylaşmayız.
+Konum verisi, rehber, fotoğraf, mikrofon kaydı veya HealthKit/Google Fit gibi kaynaklardan sağlık verisi toplamayız. Verilerinizi üçüncü taraflara satmayız ve pazarlama amacıyla paylaşmayız. Kendi girdiğiniz alışkanlık, bırakma ve kriz kayıtlarınız yalnızca uygulamanın size sunduğu işlevler için kullanılır.
 
 ## Çocukların gizliliği
 
