@@ -10,6 +10,8 @@
 /// sebebidir.
 library;
 
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -20,13 +22,43 @@ import 'l10n.dart';
 const String kLegalBaseUrl = 'https://kprens.github.io/rutin-legal';
 
 const String kPrivacyPolicyUrl = kLegalBaseUrl;
-const String kTermsOfUseUrl = '$kLegalBaseUrl/kullanim-kosullari';
-const String kDeleteAccountUrl = '$kLegalBaseUrl/hesap-silme';
+
+/// Hesap silme açıklaması — gizlilik politikasının İÇİNDEKİ bölüme gider.
+///
+/// Daha önce `$kLegalBaseUrl/hesap-silme` idi ve **404 dönüyordu**: böyle bir
+/// sayfa hiç yayınlanmamış. İçerik aslında var, gizlilik politikasının bir
+/// bölümü olarak; bu yüzden doğru adres o bölümün anchor'ı.
+const String kDeleteAccountUrl = '$kLegalBaseUrl/#hesap-silme';
 
 /// Apple'ın standart EULA'sı — kendi kullanım koşulunu yayınlamayan
 /// uygulamalar için App Store'un kabul ettiği adres.
 const String kAppleStandardEulaUrl =
     'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+
+/// Kullanım koşulları.
+///
+/// DURUM: `$kLegalBaseUrl/kullanim-kosullari` **404 dönüyor** — böyle bir sayfa
+/// hiç yayınlanmamış, içerik de yazılmamış. Bu bağlantı paywall'da duruyor ve
+/// App Store Review Guideline 3.1.2 tam olarak orada çalışan bir EULA
+/// bağlantısı istiyor; 404 doğrudan ret sebebi.
+///
+/// GEÇİCİ ÇÖZÜM (iOS): Apple, kendi EULA'sını yayınlamayan geliştiricilerin
+/// standart EULA'sına bağlanmasını AÇIKÇA kabul eder. Yani iOS tarafı bu
+/// haliyle kurallara uygun.
+///
+/// DİĞER PLATFORMLAR: Play, kullanım koşulunu zorunlu tutmuyor (gizlilik
+/// politikası zorunlu ve o yayında). Apple'ın EULA'sı App Store'a atıf yaptığı
+/// için Android'de göstermek yanlış olurdu; bu yüzden orada yayındaki yasal
+/// sayfanın köküne gidiliyor.
+///
+/// KALICI ÇÖZÜM: `rutin-legal` deposunda gerçek bir kullanım koşulları sayfası
+/// yayınlanmalı ve burası oraya çevrilmeli. O zamana kadar bu, 404'ten iyi
+/// ama ideal değil.
+/// (`dart:io` Platform DEĞİL — proje web'i de hedefliyor, orada derlenmez.)
+String get kTermsOfUseUrl =>
+    (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+        ? kAppleStandardEulaUrl
+        : kLegalBaseUrl;
 
 /// Bağlantıyı harici tarayıcıda açar. Açılamazsa kullanıcıya sessiz
 /// kalmak yerine kısa bir bilgi gösterilir — "dokundum, hiçbir şey olmadı"
