@@ -434,8 +434,7 @@ Future<void> openSos(BuildContext context) async {
     return;
   }
   Streak? target = s.streaks.length == 1 ? s.streaks.first : null;
-  if (target == null) {
-    target = await showModalBottomSheet<Streak>(
+  target ??= await showModalBottomSheet<Streak>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _SheetScaffold(
@@ -469,7 +468,6 @@ Future<void> openSos(BuildContext context) async {
             .toList(),
       ),
     );
-  }
   if (target != null && context.mounted) {
     Navigator.push(context,
         MaterialPageRoute(builder: (_) => CrisisScreen(streak: target!)));
@@ -518,7 +516,7 @@ class _SheetScaffold extends StatelessWidget {
   final String title;
   final List<Widget> children;
   final Color? accent;
-  _SheetScaffold({required this.title, required this.children, this.accent});
+  const _SheetScaffold({required this.title, required this.children, this.accent});
 
   @override
   Widget build(BuildContext context) {
@@ -529,7 +527,7 @@ class _SheetScaffold extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: RC.card,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           border: Border(top: BorderSide(color: RC.stroke)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),

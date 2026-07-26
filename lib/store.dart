@@ -668,7 +668,7 @@ class AppState extends ChangeNotifier {
       await load();
       return;
     }
-    final cloud = const CloudRepository();
+    const cloud = CloudRepository();
     LoadResult cloudResult;
     try {
       cloudResult = await cloud.loadAll();
@@ -712,7 +712,7 @@ class AppState extends ChangeNotifier {
   /// varsa Iap.restore() onu bu hesap için hemen yeniden açar.
   Future<void> onSignedIn() async {
     if (!supabaseConfigured) return;
-    final cloud = const CloudRepository();
+    const cloud = CloudRepository();
     LoadResult cloudResult;
     try {
       cloudResult = await cloud.loadAll();

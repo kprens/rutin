@@ -312,6 +312,13 @@ class _CrisisScreenState extends State<CrisisScreen>
           ),
           TextButton(
             onPressed: () async {
+              // messenger ve navContext, onay diyaloğu AÇILMADAN önce
+              // yakalanıyor (yukarıdaki "Geçti" butonuyla aynı gerekçe):
+              // onaydan sonra bu ekran pop edilecek ve kendi context'i
+              // geçersizleşecek. Await'ten sonra türetmek, ekran bu sırada
+              // kapatılmışsa geçersiz bir context kullanmak olurdu.
+              final messenger = ScaffoldMessenger.of(context);
+              final navContext = Navigator.of(context).context;
               final ok = await _confirm(
                 title: t('Emin misin?', 'Are you sure?'),
                 message: t(
@@ -319,21 +326,25 @@ class _CrisisScreenState extends State<CrisisScreen>
                     'Your ${st.days}-day streak and all progress will reset. Want to wait one more minute?'),
                 confirmLabel: t('Sıfırla', 'Reset'),
               );
-              if (ok && context.mounted) {
-                final messenger = ScaffoldMessenger.of(context);
-                final navContext = Navigator.of(context).context;
-                s.resetStreak(st);
-                Navigator.pop(context);
-                messenger
-                  ..clearSnackBars()
-                  ..showSnackBar(SnackBar(
-                      content: Text(t(
-                          'Sıfırlandı. Düşmek değil, kalkmamak kaybettirir — yeni seri başladı 💪',
-                          "Reset done. Falling isn't losing — staying down is. New streak started 💪"))));
-                // Nüks sonrası da sorulur — asıl değerli veri budur.
-                // Ton suçlayıcı değil (bkz. trigger_sheet.dart).
-                askTrigger(navContext, streak: st, survived: false);
-              }
+              // `context.mounted` DEĞİL `mounted`: buradaki context bu
+              // State'in kendi context'i, dolayısıyla doğru kontrol State'in
+              // mounted'ıdır. Onay diyaloğu açıkken kullanıcı ekranı
+              // kapatmış olabilir.
+              // `mounted` bu State'i, `navContext.mounted` ise aşağıda
+              // tetikleyici anketini açacak olan Navigator context'ini korur;
+              // ikisi ayrı ağaç düğümü olduğu için ayrı ayrı doğrulanmalı.
+              if (!ok || !mounted || !navContext.mounted) return;
+              s.resetStreak(st);
+              Navigator.pop(context);
+              messenger
+                ..clearSnackBars()
+                ..showSnackBar(SnackBar(
+                    content: Text(t(
+                        'Sıfırlandı. Düşmek değil, kalkmamak kaybettirir — yeni seri başladı 💪',
+                        "Reset done. Falling isn't losing — staying down is. New streak started 💪"))));
+              // Nüks sonrası da sorulur — asıl değerli veri budur.
+              // Ton suçlayıcı değil (bkz. trigger_sheet.dart).
+              askTrigger(navContext, streak: st, survived: false);
             },
             child: Text(t('Yine de sıfırla', 'Reset anyway'),
                 style: TextStyle(color: RC.muted, fontSize: 13)),

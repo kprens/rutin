@@ -18,7 +18,7 @@ class UiCelebrationScreen extends StatelessWidget {
       body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF2A1E3F), RC.bg],
+            colors: [const Color(0xFF2A1E3F), RC.bg],
             begin: Alignment.topCenter,
             end: Alignment.center,
           ),

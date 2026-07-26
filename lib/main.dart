@@ -95,7 +95,11 @@ Future<void> bootRutin() async {
   // LocalAuthService ile çalışmaya devam eder, çökmez.
   if (_supabaseUrl.isNotEmpty && _supabaseAnonKey.isNotEmpty) {
     try {
-      await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey);
+      // `anonKey` eskitildi; `publishableKey` ile aynı yere gidiyor
+      // (paket içinde `publishableKey ?? anonKey`), yani bu yalnızca isim
+      // değişikliği — mevcut anahtar aynen çalışmaya devam eder.
+      await Supabase.initialize(
+          url: _supabaseUrl, publishableKey: _supabaseAnonKey);
       auth.supabaseConfigured = true;
       // IAP makbuz doğrulama Edge Function'ı da aynı Supabase projesinde
       // yaşar; url'i otomatik türet (bkz. iap.dart → verifyReceiptUrl).

@@ -84,6 +84,15 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _run(Future<AuthResult> Function() call,
       {String method = 'email'}) async {
     if (_busy) return;
+    // AppState referansı HER await'ten ÖNCE yakalanıyor.
+    //
+    // Alternatif (await sonrası `context.read`) iki sorun doğuruyordu:
+    // widget bu sırada ağaçtan kalkmışsa context kullanımı geçersiz olur;
+    // `mounted` kontrolüyle atlamak ise `onSignedIn()`'in HİÇ çalışmaması
+    // demektir — yani kullanıcının bulut verisi yüklenmez. Referansı önden
+    // almak ikisini de çözüyor: state işi mount durumundan bağımsız tamamlanır,
+    // yalnızca ARAYÜZ dokunuşları mounted ile korunur.
+    final state = context.read<AppState>();
     setState(() => _busy = true);
     Analytics.instance
         .log(Ev.authStart, {'method': method, 'mode': _isSignUp ? 'signup' : 'signin'});
@@ -110,14 +119,12 @@ class _AuthScreenState extends State<AuthScreen> {
     // Bu hesabın bulutta kayıtlı verisi varsa yükler (cihazdaki önceki
     // oturuma ait veri tamamen değiştirilir); yoksa şu anki cihaz verisini
     // bu hesaba ilk kez taşır. Backend yapılandırılmamışsa no-op.
-    await context.read<AppState>().onSignedIn();
-    if (!mounted) return;
-    setState(() => _busy = false);
+    await state.onSignedIn();
     // Backend yokken de kullanıcıyı yerelde kurar; Supabase geldiğinde
     // oturum zaten açılmış olur, bu satır profil adını yazmaya devam eder.
-    context
-        .read<AppState>()
-        .finishOnboarding(name: _name.text.trim());
+    state.finishOnboarding(name: _name.text.trim());
+    if (!mounted) return;
+    setState(() => _busy = false);
     Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (_) => const RootShell()));
   }
@@ -133,7 +140,7 @@ class _AuthScreenState extends State<AuthScreen> {
       body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF1C1B3A), RC.bg],
+            colors: [const Color(0xFF1C1B3A), RC.bg],
             begin: Alignment.topCenter,
             end: Alignment.center,
           ),
@@ -192,7 +199,7 @@ class _AuthScreenState extends State<AuthScreen> {
               _busy
                   ? Center(
                       child: Padding(
-                        padding: EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(8),
                         child: CircularProgressIndicator(
                             color: RC.purpleBright),
                       ),
