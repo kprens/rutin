@@ -109,7 +109,21 @@ class _CrisisScreenState extends State<CrisisScreen>
             animation: _breath,
             builder: (_, __) {
               final v = Curves.easeInOut.transform(_breath.value);
-              final size = 130 + v * 90;
+              // ERİŞİLEBİLİRLİK — "hareketi azalt" tercihi.
+              //
+              // Bu daire 130px'den 220px'e sürekli büyüyüp küçülüyor; büyük
+              // ölçekli, sonsuz tekrarlayan bir hareket. Vestibüler
+              // rahatsızlığı olan kullanıcılarda baş dönmesi ve mide bulantısı
+              // tetikleyebilir — üstelik bu ekran ZATEN kriz anında, kişi
+              // gergince açıyor.
+              //
+              // Ama animasyon burada süs değil, İŞLEVİN KENDİSİ: nefes
+              // temposunu veriyor. Bu yüzden özellik kapatılmıyor, yalnızca
+              // hareket durduruluyor: daire sabit kalıyor, "Nefes al…/Nefes
+              // ver…" yönergesi ve sayaç aynen çalışmaya devam ediyor.
+              // Kullanıcı tempoyu metinden takip eder.
+              final reduceMotion = MediaQuery.disableAnimationsOf(context);
+              final size = reduceMotion ? 175.0 : 130 + v * 90;
               return Column(
                 children: [
                   SizedBox(

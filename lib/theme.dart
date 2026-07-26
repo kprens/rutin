@@ -38,7 +38,13 @@ RutinColors _l(Color accent, Color accent2, Color amber, Color blue,
       card: card,
       card2: card2,
       text: const Color(0xFF1C1C22),
-      muted: const Color(0xFF8C8B98),
+      // ERİŞİLEBİLİRLİK: eskiden 0xFF8C8B98 idi ve açık temaların HEPSİNDE
+      // WCAG AA'nın altında kalıyordu (ölçülen 3.00–3.35:1, gereken 4.5:1).
+      // Bu renk uygulamada 120'den fazla yerde metin rengi olarak kullanılıyor,
+      // yani sorun kozmetik değil: düşük görme keskinliğinde ya da güneş
+      // altında bu metinlerin çoğu okunmuyordu. Ton korunarak koyulaştırıldı;
+      // yeni ölçüm 4.56–5.10:1 (beyaz kart dahil en zorlu üç yüzeyde).
+      muted: const Color(0xFF6E6D77),
       accent: accent,
       accent2: accent2,
       green: const Color(0xFF29B673),

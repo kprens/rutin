@@ -177,12 +177,21 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     final active = i == _tab;
     final (icon, label) = _items[i];
     final color = active ? RC.purpleBright : RC.muted;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _goToTab(i),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+    // Seçili sekme GÖRSEL olarak iki şeyle belli oluyor: üstteki renkli çubuk
+    // ve rengin değişmesi. İkisi de ekran okuyucuya hiçbir şey söylemiyordu —
+    // görme engelli bir kullanıcı hangi sekmede olduğunu bilemiyordu.
+    // `selected` bunu "seçili" olarak seslendirir.
+    return Semantics(
+      button: true,
+      selected: active,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _goToTab(i),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
           Container(
             width: 26,
             height: 3,
@@ -195,14 +204,17 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
                   : null,
             ),
           ),
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
-          Text(label,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 11,
-                  fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
-        ],
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 4),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }

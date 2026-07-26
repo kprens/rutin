@@ -38,8 +38,21 @@ class RC {
   // Metin
   static Color get text => _p.text;
   static Color get muted => _p.muted;
-  static Color get faint =>
-      Color.alphaBlend(_p.muted.withValues(alpha: 0.45), _p.bg);
+  /// Üçüncü metin kademesi.
+  ///
+  /// Eskiden `muted`'in %45 saydamlıkla açılmış haliydi ve ölçülen kontrast
+  /// **1.55–2.32:1** idi — WCAG AA'nın (4.5:1) çok altında, 20 tema/mod
+  /// kombinasyonunun HEPSİNDE. Dekoratif bir renk olsa sorun olmazdı ama
+  /// gerçek metinde kullanılıyordu: en kritiği paywall'daki deneme süresi /
+  /// fiyat / otomatik yenileme beyanı (11px). Okunamayan bir beyan, beyan
+  /// değildir — bu hem erişilebilirlik hem de mağaza uyumluluğu sorunuydu.
+  ///
+  /// Ölçüm şunu gösterdi: bu yazı boyutlarında (11–13px) `muted`'ten DAHA
+  /// AÇIK bir kademe AA'yı geçemiyor — saydamlık 1.0 olsa bile sınırda
+  /// kalıyor. Yani üçüncü kademe matematiksel olarak mümkün değil; `faint`
+  /// artık `muted` ile aynı. Görsel hiyerarşi renk yerine yazı boyutu ve
+  /// ağırlığıyla kurulmalı.
+  static Color get faint => _p.muted;
 
   // Aksanlar
   static Color get purple => _p.accent; // birincil
@@ -301,16 +314,22 @@ class IconTile extends StatelessWidget {
   const IconTile(this.icon,
       {super.key, this.tint, this.iconColor, this.size = 48, this.radius = 14});
   @override
-  Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: tint ?? RC.card2,
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: RC.stroke),
+  // ExcludeSemantics: bu kutu tanımı gereği DEKORATİF (sınıf açıklamasına
+  // bakınız) — yanındaki metin zaten anlamı taşıyor. Dışlanmazsa ekran
+  // okuyucu her satırda önce anlamsız bir ikon düğümü okur ve listede
+  // gezinmek iki kat uzun sürer.
+  Widget build(BuildContext context) => ExcludeSemantics(
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: tint ?? RC.card2,
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: RC.stroke),
+          ),
+          child: Icon(icon, size: size * 0.5, color: iconColor ?? RC.text),
         ),
-        child: Icon(icon, size: size * 0.5, color: iconColor ?? RC.text),
       );
 }
 
@@ -330,31 +349,52 @@ class RButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final grad = gradient ?? RG.purpleBtn;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: height,
+    // ERİŞİLEBİLİRLİK: GestureDetector hiçbir semantik bilgi üretmez — ekran
+    // okuyucu yalnızca metni okur, bunun BİR BUTON olduğunu ve dokunulabilir
+    // olup olmadığını söylemez. `button: true` VoiceOver/TalkBack'e "düğme"
+    // dedirtir; `enabled` ise onTap null iken "devre dışı" bilgisini verir.
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      // Metin zaten label olarak verildi; alttaki Text'in ayrıca okunması
+      // etiketin iki kez seslendirilmesine yol açardı.
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: height,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          gradient: grad,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-                color: grad.colors.first.withValues(alpha: 0.35),
-                blurRadius: 18,
-                offset: const Offset(0, 6)),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (leading != null) ...[leading!, const SizedBox(width: 8)],
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white)),
-          ],
+          decoration: BoxDecoration(
+            gradient: grad,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                  color: grad.colors.first.withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6)),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leading != null) ...[leading!, const SizedBox(width: 8)],
+              Flexible(
+                // Dinamik yazı boyutu büyütüldüğünde (Ayarlar → Erişilebilirlik
+                // → Daha Büyük Metin) etiket sabit yükseklikli butonu taşırıp
+                // sarı-siyah "overflow" şeridine yol açıyordu. Flexible +
+                // ellipsis, buton düzenini bozmadan metni sığdırır.
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -368,26 +408,66 @@ class RSwitch extends StatelessWidget {
   const RSwitch({super.key, required this.value, this.onChanged});
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => onChanged?.call(!value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: 52,
-        height: 30,
-        padding: const EdgeInsets.all(3),
-        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-        decoration: BoxDecoration(
-          color: value ? RC.purple : const Color(0xFF2A2D3A),
-          borderRadius: BorderRadius.circular(99),
-          boxShadow: value
-              ? [BoxShadow(color: RC.purple.withValues(alpha: 0.5), blurRadius: 12)]
-              : null,
-        ),
-        child: Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(
-              color: Colors.white, shape: BoxShape.circle),
+    // ERİŞİLEBİLİRLİK — üç ayrı sorun vardı:
+    //
+    // 1. Semantik yok: ekran okuyucu bunun bir anahtar olduğunu da, açık mı
+    //    kapalı mı olduğunu da söyleyemiyordu. Ayarlar ekranı tamamen bu
+    //    bileşenden oluştuğu için görme engelli bir kullanıcı hiçbir ayarı
+    //    yönetemezdi.
+    // 2. Dokunma hedefi 52x30'du; hem iOS (44pt) hem Android (48dp) minimumun
+    //    altında. Görsel boyut korunuyor, dokunulabilir alan büyütülüyor.
+    // 3. Durum YALNIZCA renkle anlatılıyordu (mor/gri). Renk körlüğünde iki
+    //    durum ayırt edilemiyordu; artık topuz konumu da (sola/sağa) bilgi
+    //    taşıyor — zaten öyleydi, semantik etiketle birlikte artık
+    //    seslendiriliyor da.
+    return Semantics(
+      toggled: value,
+      enabled: onChanged != null,
+      child: GestureDetector(
+        onTap: () => onChanged?.call(!value),
+        // opaque: yalnızca boyanan piksellerin değil, tüm 48dp'lik alanın
+        // dokunmayı yakalaması için.
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: 48,
+          width: 52,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 52,
+              height: 30,
+              padding: const EdgeInsets.all(3),
+              alignment:
+                  value ? Alignment.centerRight : Alignment.centerLeft,
+              decoration: BoxDecoration(
+                // Kapalı durum rengi eskiden sabit `0xFF2A2D3A` idi — koyu
+                // lacivert bir ton. Koyu temada doğru görünüyordu ama AÇIK
+                // temada beyaz kartın üstünde neredeyse siyah bir leke gibi
+                // duruyordu ve tema seçiminden bağımsızdı. Artık paletten
+                // geliyor.
+                color: value ? RC.purple : RC.strokeSoft,
+                borderRadius: BorderRadius.circular(99),
+                boxShadow: value
+                    ? [
+                        BoxShadow(
+                            color: RC.purple.withValues(alpha: 0.5),
+                            blurRadius: 12)
+                      ]
+                    : null,
+              ),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    // Kapalıyken topuz açık zemin üzerinde beyaz kalıyordu ve
+                    // kaybolabiliyordu; ince kenarlık onu her durumda
+                    // görünür kılar.
+                    border: Border.all(color: RC.stroke)),
+              ),
+            ),
+          ),
         ),
       ),
     );
