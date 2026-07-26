@@ -13,6 +13,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'diagnostics.dart';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart'
@@ -305,10 +306,16 @@ class SupabaseAuthService implements AuthService {
     try {
       await _client.rpc('delete_user');
       serverDeleted = true;
-    } catch (_) {
+    } catch (e, st) {
       // RPC kurulu değilse / ağ yoksa yerel temizlik yine de devam eder,
       // ama sonuç `false` döner ki kullanıcıya "hesabın tamamen silindi"
       // gibi YANLIŞ bir bilgi verilmesin.
+      //
+      // Raporlanıyor çünkü bu sessiz kalırsa App Store 5.1.1(v) ihlaline
+      // dönüşür: kullanıcı hesabını sildiğini sanır, veri sunucuda durur.
+      // `delete_user` RPC'sinin hiç kurulmamış olması da tam olarak böyle
+      // fark edilir.
+      reportError(e, st, op: 'account_delete_rpc');
       serverDeleted = false;
     }
     try {

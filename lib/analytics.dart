@@ -324,6 +324,14 @@ abstract final class Ev {
   static const purchaseCancel = 'purchase_cancel';
   static const purchaseRestore = 'purchase_restore';
 
+  // ---- ATT (iOS izleme izni) ----
+  /// Sistem diyaloğu gösterilmek üzere.
+  static const attPrompt = 'att_prompt';
+
+  /// Sonuç: authorized / denied / restricted / notSupported.
+  /// `authorized` oranı doğrudan iOS reklam gelirini belirler.
+  static const attStatus = 'att_status';
+
   // ---- Reklam / geçici Pro ----
   static const rewardedStart = 'rewarded_start';
   static const rewardedGranted = 'rewarded_granted';

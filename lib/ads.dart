@@ -17,9 +17,12 @@ library;
 import 'dart:async';
 
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+
+import 'analytics.dart';
 
 class Ads {
   // ---------------- Banner ----------------
@@ -120,6 +123,52 @@ class Ads {
       Rewarded.instance.preload();
     } catch (_) {
       // Reklam başlatılamazsa uygulama reklamsız çalışmaya devam eder.
+    }
+  }
+
+  /// APP TRACKING TRANSPARENCY (iOS 14.5+).
+  ///
+  /// `Info.plist`'te `NSUserTrackingUsageDescription` metni zaten vardı ama
+  /// kodda ATT hiç istenmiyordu. Sonuç: iOS'ta IDFA'ya asla erişilemiyor,
+  /// dolayısıyla TÜM reklamlar kişiselleştirilmemiş olarak sunuluyor ve eCPM
+  /// belirgin biçimde düşük kalıyor. Bu doğrudan gelir kaybı.
+  ///
+  /// ZAMANLAMA — bilinçli olarak açılışta DEĞİL:
+  /// Sistem bu diyaloğu kullanıcı başına YALNIZCA BİR KEZ gösterir; reddedilen
+  /// izin uygulama içinden bir daha sorulamaz (kullanıcı Ayarlar'dan açmalı).
+  /// Bu yüzden tek atış, kullanıcı uygulamanın ne işe yaradığını gördükten
+  /// SONRA kullanılmalı. Soğuk açılışta bağlamsız sorulması, bildirim
+  /// izninde olduğu gibi (bkz. main.dart) ret oranını yükseltirdi.
+  /// Çağrı yeri: [RootShell] — yani onboarding ve giriş tamamlandıktan sonra.
+  ///
+  /// Android ve diğer platformlarda no-op: ATT yalnızca Apple platformlarında
+  /// vardır.
+  ///
+  /// Hipotez (ölçülmedi): izni ikinci oturuma ertelemek onay oranını daha da
+  /// artırabilir. Şu anki kurgu, mevcut kullanıcıları da kapsaması için
+  /// RootShell'e bağlı; ölçüm için `att_*` olaylarına bakılabilir.
+  static Future<void> ensureTrackingRequested() async {
+    // `dart:io` Platform DEĞİL: bu proje web'i de hedefliyor (web/ dizini var)
+    // ve dart:io orada derlenmez. `kIsWeb` kontrolü de şart — web'de
+    // defaultTargetPlatform, tarayıcının çalıştığı CİHAZI döndürür, yani
+    // iPhone'daki Safari'de TargetPlatform.iOS gelir ama ATT diye bir şey yoktur.
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
+    try {
+      final status =
+          await AppTrackingTransparency.trackingAuthorizationStatus;
+      // Daha önce karar verilmişse sistem diyaloğu zaten göstermez;
+      // gereksiz çağrı yapmadan durumu ölç ve çık.
+      if (status != TrackingStatus.notDetermined) {
+        Analytics.instance.log(Ev.attStatus, {'status': status.name});
+        return;
+      }
+      Analytics.instance.log(Ev.attPrompt);
+      final result =
+          await AppTrackingTransparency.requestTrackingAuthorization();
+      Analytics.instance.log(Ev.attStatus, {'status': result.name});
+    } catch (_) {
+      // ATT sorulamadı (eski iOS, simülatör tuhaflığı vb.) — reklamlar
+      // kişiselleştirilmemiş olarak çalışmaya devam eder.
     }
   }
 

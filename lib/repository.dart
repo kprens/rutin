@@ -6,6 +6,7 @@
 library;
 
 import 'dart:convert';
+import 'diagnostics.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -64,7 +65,10 @@ class LocalRepository implements Repository {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return const LoadResult.missing();
       return LoadResult.found(Map<String, dynamic>.from(decoded));
-    } catch (_) {
+    } catch (e, st) {
+      // Cihazdaki veri okunamadi. Bu, kullanicinin TUM gecmisini
+      // kaybetmesiyle sonuclanabilecek bir durum — sessiz kalmamali.
+      reportError(e, st, op: 'local_load');
       // Bozuk JSON ya da okunamayan tercih deposu. Cihazdaki veri
       // kullanılamıyor; "kayıt yok" değil "okunamadı" demek doğrusu —
       // aksi halde çağıran taraf bunu boş hesap sanıp üzerine yazar.
@@ -117,7 +121,8 @@ class CloudRepository implements Repository {
       // kullanıcı en azından bu anlık görüntüyle çalışmaya devam eder.
       await cache.saveAll(data);
       return LoadResult.found(data);
-    } catch (_) {
+    } catch (e, st) {
+      reportError(e, st, op: 'cloud_load');
       // Ağ/sunucu hatası. Bu hesaba ait son kopya varsa onunla devam et —
       // "veri yok" DEME, aksi halde çağıran taraf hesabı boş sanar.
       final cached = await cache.loadAll();
@@ -133,7 +138,9 @@ class CloudRepository implements Repository {
     // Önce cihaza: bulut erişilemese bile veri kaybolmasın.
     try {
       await _cacheFor(uid).saveAll(data);
-    } catch (_) {
+    } catch (e, st) {
+      // Yerel yedek yazilamadi: bulut da erisilemezse veri gercekten kaybolur.
+      reportError(e, st, op: 'local_cache_save');
       // Yerel yazma da başarısızsa (disk dolu) yapılabilecek bir şey yok.
     }
     try {
@@ -142,7 +149,8 @@ class CloudRepository implements Repository {
         'data': data,
         'updated_at': DateTime.now().toIso8601String(),
       });
-    } catch (_) {
+    } catch (e, st) {
+      reportError(e, st, op: 'cloud_save');
       // Bulut şu an yazılamadı; veri cihazda güvende. Tüm durum tek JSON
       // belgesi olarak yazıldığı için bir sonraki başarılı kayıt eksiksiz
       // senkronizasyonu kendiliğinden sağlar.

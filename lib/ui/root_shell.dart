@@ -41,6 +41,22 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _tab);
+
+    // ATT izni (yalnızca iOS) — ana ekrana ULAŞILDIKTAN sonra istenir, açılışta
+    // değil. Sistem bu diyaloğu kullanıcı başına bir kez gösterir, o yüzden tek
+    // atış kullanıcı uygulamayı gördükten sonra harcanmalı (bkz. ads.dart).
+    //
+    // Buraya bağlı olması, onboarding'i çoktan bitirmiş MEVCUT kullanıcıların
+    // da kapsanmasını sağlıyor; finishOnboarding'e bağlansaydı onlara hiç
+    // sorulmazdı ve iOS'ta kalıcı olarak kişiselleştirilmemiş reklam
+    // görürlerdi.
+    //
+    // Gecikme, yeni kullanıcıda onboarding sonrası tetiklenen BİLDİRİM izin
+    // diyaloğuyla üst üste binmesin diye. iOS izin diyaloglarını zaten sıraya
+    // alır; bu yalnızca sıralamayı öngörülebilir kılıyor.
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) unawaited(Ads.ensureTrackingRequested());
+    });
   }
 
   @override

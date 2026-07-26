@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'analytics.dart';
+import 'diagnostics.dart';
 import 'auth.dart';
 import 'friends.dart';
 import 'home_widget_service.dart' as hw;
@@ -362,7 +363,8 @@ class AppState extends ChangeNotifier {
     LoadResult result;
     try {
       result = await repo.loadAll();
-    } catch (_) {
+    } catch (e, st) {
+      reportError(e, st, op: 'state_load');
       result = const LoadResult.failure();
     }
     _applyLoadedData(result.data);
@@ -598,7 +600,12 @@ class AppState extends ChangeNotifier {
     _invalidateStreakCache();
     try {
       await repo.saveAll(_toMap());
-    } catch (_) {
+    } catch (e, st) {
+      // Raporlanıyor: bu, kullanıcının verisinin kaydedilemediği andır ve
+      // sessiz kaldığında "uygulamayı açtım, her şey gitmiş" şikâyeti olarak
+      // geri döner. JSON'a çevrilemeyen bir alan gibi kalıcı hatalar ancak
+      // böyle fark edilir.
+      reportError(e, st, op: 'state_save');
       // Kayıt başarısız (disk dolu, bulut erişilemiyor, JSON'a çevrilemeyen
       // alan...). Çoğu çağrı yeri bunu await ETMEDİĞİ için burada fırlayan
       // hata "unhandled async exception" olarak kalırdı; boot() içindeki

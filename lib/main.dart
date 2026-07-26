@@ -62,6 +62,26 @@ Future<void> main() async {
       (options) {
         options.dsn = _sentryDsn;
         options.tracesSampleRate = _sentryTracesSampleRate;
+        // GİZLİLİK — bu uygulama için pazarlık konusu değil.
+        //
+        // Rutin, kullanıcının neyi bırakmaya çalıştığını bilen bir uygulama.
+        // Bir hata raporunun yanına IP adresi, cihaz kimliği veya oturum
+        // bilgisi iliştirmek, bu son derece hassas veriyi üçüncü bir tarafa
+        // taşımak demektir. `sendDefaultPii` varsayılan olarak zaten false
+        // ama burada AÇIKÇA yazılıyor: ileride biri varsayılanı değiştirirse
+        // ya da paket sürümü değişirse sessizce açılmasın.
+        options.sendDefaultPii = false;
+        // Hata mesajlarının kullanıcı içeriğiyle kurulmaması bir KOD
+        // kuralıdır (bkz. diagnostics.dart); burada ek bir güvence olarak
+        // ekran görüntüsü eki kapalı tutuluyor — kullanıcının alışkanlık
+        // adlarını doğrudan taşırdı.
+        //
+        // `attachViewHierarchy` de aynı riski taşır ama BİLEREK set
+        // edilmiyor: API'si deneysel (analyzer uyarısı veriyor) ve
+        // varsayılanı zaten false. Deneysel bir API'ye bağlanmak yerine
+        // varsayılana güveniliyor; Sentry sürümü yükseltilirken bu
+        // varsayılanın hâlâ false olduğu doğrulanmalı.
+        options.attachScreenshot = false;
       },
       appRunner: bootRutin,
     );

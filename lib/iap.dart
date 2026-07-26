@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import 'analytics.dart';
+import 'diagnostics.dart';
 
 /// Sunucu tarafı makbuz doğrulaması yapan fonksiyon tipi.
 /// `true` dönerse Pro açılır, `false` dönerse [Iap.lastError] set edilir.
@@ -321,8 +322,14 @@ class Iap extends ChangeNotifier {
       }
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       return body['valid'] == true;
-    } catch (e) {
+    } catch (e, st) {
       lastError = 'Makbuz doğrulanamadı: sunucuya ulaşılamadı.';
+      // Kullanıcı ÖDEDİ ama Pro açılamadı. Ağ hatası da olabilir, Edge
+      // Function arızası da — ikincisi sessiz kaldığında aylarca fark
+      // edilmeyen bir gelir kaybına dönüşür (ömür boyu ürün doğrulama
+      // hatasında tam olarak bu yaşandı). `e` zaten yakalanıyordu ama
+      // hiçbir yere gitmiyordu.
+      reportError(e, st, op: 'iap_verify');
       return false;
     }
   }

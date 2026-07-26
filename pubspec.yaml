@@ -36,6 +36,7 @@ dependencies:
   sign_in_with_apple: ^6.1.3
   # Yerel Apple akışında zorunlu olan nonce'un SHA-256 özetini almak için.
   crypto: ^3.0.3
+  app_tracking_transparency: ^2.0.7
 
 dev_dependencies:
   flutter_test:
