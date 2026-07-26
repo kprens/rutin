@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:provider/provider.dart';
 
+import '../ads.dart';
+import '../analytics.dart';
+import '../home_widget_service.dart' as hw;
 import '../l10n.dart';
 import '../store.dart';
 import 'rutin_ui.dart';
@@ -21,6 +26,7 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   int _tab = 0;
   bool _celebrationShowing = false;
+  late final PageController _pageController;
 
   static const _screens = [
     HomeScreen(),
@@ -34,18 +40,47 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _pageController = PageController(initialPage: _tab);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
     super.dispose();
+  }
+
+  /// Sekmeler arası hem alt gezinme çubuğuna dokunarak hem de ekranı sağa/
+  /// sola kaydırarak (swipe) geçilebilir — ikisi de aynı [PageController]'ı
+  /// kullanır, bu yüzden tutarlı kalır (bkz. build() içindeki PageView).
+  void _goToTab(int i) {
+    if (i == _tab) return;
+    _pageController.animateToPage(i,
+        duration: const Duration(milliseconds: 280), curve: Curves.easeOutCubic);
+  }
+
+  void _onPageChanged(int i) {
+    setState(() => _tab = i);
+    // Sekme değişimi doğal bir geçiş anı — interstitial için tek tetikleme
+    // noktası burası (hem dokunma hem kaydırmayla gelinen geçişleri kapsar).
+    // Frekans/ısınma/oturum sınırları Interstitials içinde (bkz. ads.dart).
+    Interstitials.instance.maybeShow(isPro: context.read<AppState>().hasPro);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     if (s == AppLifecycleState.resumed) {
-      context.read<AppState>().dailyRollover();
+      final state = context.read<AppState>();
+      state.dailyRollover();
+      // Uygulama arka plandayken widget'ta yapılmış olabilecek dokunmaları
+      // (bkz. home_widget_service.dart) gerçek görev listesine işler.
+      hw.applyPendingWidgetToggles(state);
+      Analytics.instance.log(Ev.appOpen);
+    } else if (s == AppLifecycleState.paused) {
+      // Bekleyen ölçüm olaylarını arka plana geçmeden gönder; aksi halde
+      // sistem uygulamayı öldürürse oturumun olayları bir sonraki açılışa
+      // kadar gecikir.
+      unawaited(Analytics.instance.onPause());
     }
   }
 
@@ -55,8 +90,8 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     final cel = s.pendingCelebration;
     if (cel == null || _celebrationShowing) return;
     _celebrationShowing = true;
-    s.markCelebrated(cel.streak, cel.milestone);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      s.markCelebrated(cel.streak, cel.milestone);
       await Navigator.push(
         context,
         MaterialPageRoute(
@@ -86,24 +121,38 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     _checkCelebration(s);
     return Scaffold(
       backgroundColor: RC.bg,
-      body: SafeArea(bottom: false, child: _screens[_tab]),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: RC.card,
-          border: Border(top: BorderSide(color: RC.stroke)),
+      body: SafeArea(
+        bottom: false,
+        child: PageView(
+          controller: _pageController,
+          onPageChanged: _onPageChanged,
+          children: _screens,
         ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 66,
-            child: Row(
-              children: [
-                for (var i = 0; i < _items.length; i++)
-                  Expanded(child: _navItem(i)),
-              ],
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Reklam yalnızca Pro (kalıcı ya da geçici) OLMAYAN kullanıcılara.
+          if (!s.hasPro) const AdBanner(),
+          Container(
+            decoration: BoxDecoration(
+              color: RC.card,
+              border: Border(top: BorderSide(color: RC.stroke)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                height: 66,
+                child: Row(
+                  children: [
+                    for (var i = 0; i < _items.length; i++)
+                      Expanded(child: _navItem(i)),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -114,7 +163,7 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     final color = active ? RC.purpleBright : RC.muted;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _tab = i),
+      onTap: () => _goToTab(i),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

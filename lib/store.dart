@@ -1,10 +1,18 @@
 /// Uygulama durumu (state) ve iş mantığı.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'analytics.dart';
+import 'auth.dart';
+import 'friends.dart';
+import 'home_widget_service.dart' as hw;
+import 'iap.dart';
+import 'insights.dart';
 import 'l10n.dart';
 import 'models.dart';
 import 'notifications.dart';
@@ -22,7 +30,9 @@ int mondayIndex(DateTime d) => (d.weekday - 1) % 7;
 const milestones = [1, 3, 7, 14, 30, 90, 180, 365];
 
 class AppState extends ChangeNotifier {
-  final Repository repo;
+  // ÖNEMLİ: artık `final` değil — hesap girişi/çıkışında Local↔Cloud arası
+  // geçiş yapabilmek için (bkz. boot/onSignedIn/signOut).
+  Repository repo;
   final NotificationService notifications;
 
   List<Streak> streaks = [];
@@ -34,8 +44,33 @@ class AppState extends ChangeNotifier {
   WaterState water = WaterState(date: todayKey());
 
   // Pro / tema
-  String themeId = 'alev';
+  // Varsayılan: Pro kullanıcılar için 'Gece Yarısı' (pro tema), ücretsiz
+  // kullanıcılar için 'Beyaz' (temiz/minimal ücretsiz tema — turuncu 'Alev'
+  // hakkında olumsuz kullanıcı yorumları üzerine varsayılandan çıkarıldı;
+  // Alev, Okyanus ve diğerleri hâlâ tema listesinde seçenek olarak duruyor)
+  // — bkz. load() ve theme.dart (ThemeSpec.pro). Bu alan sadece "hiç veri
+  // yokken" (ilk açılış, isPro henüz bilinmiyor/false) kullanılır; load()
+  // gerçek isPro'ya göre ezer.
+  String themeId = 'beyaz';
+
+  /// KALICI Pro — satın alma ile açılır (bkz. activatePro). Ödüllü reklamla
+  /// açılan GEÇİCİ Pro'dan ayrıdır; kalıcı olan buraya, geçici olan
+  /// [proTrialUntilMs]'e yazılır.
   bool isPro = false;
+
+  /// Ödüllü reklamla açılan geçici Pro'nun bitiş zamanı (epoch ms). null ise
+  /// aktif deneme yok. Erişim kontrolü için [hasPro] kullanılmalı — [isPro]
+  /// tek başına geçici erişimi görmez.
+  int? proTrialUntilMs;
+
+  /// Varsayılan AÇIK mod. Her tema hem açık hem koyu palete sahiptir
+  /// (bkz. theme.dart) ve bu bayrak hangisinin kullanılacağını belirler.
+  /// Varsayılan tema 'beyaz' yapıldığında bu alan hâlâ `true` (koyu) idi;
+  /// yani yeni kullanıcı "Beyaz" temayı seçili görüyor ama ekranda onun
+  /// KOYU paleti (#0F1115, neredeyse siyah) çiziliyordu — istenen beyaz
+  /// görünüm hiç ortaya çıkmıyordu. Mevcut kullanıcılar kendi kayıtlı
+  /// tercihlerini korur (load() yalnızca kayıt yoksa bu varsayılana düşer).
+  bool darkMode = false;
 
   // Kullanıcı profili (yeni arayüz)
   String userName = '';
@@ -43,6 +78,11 @@ class AppState extends ChangeNotifier {
 
   // Su kayıt defteri: 'yyyy-MM-dd' -> [ {ml, time} ]
   Map<String, List<WaterLogEntry>> waterLog = {};
+
+  /// Kriz/nüks anlarında toplanan tek dokunuşluk bağlam kayıtları
+  /// (bkz. TriggerEntry). Faz 3'ün (Risk Penceresi, Tetikleyici Haritası)
+  /// tek veri kaynağı budur.
+  List<TriggerEntry> triggerLog = [];
 
   // Ayarlar (yeni arayüz kalıcı toggle'ları)
   bool pushNotifications = true;
@@ -62,6 +102,103 @@ class AppState extends ChangeNotifier {
   // Sosyal: arkadaşlarla paylaşılan streak id'leri
   Set<int> sharedStreakIds = {};
 
+  // ---------- Arkadaşlar / Sorumluluk Ortağı ----------
+  // Bkz. friends.dart. Bulut olmadan (LocalFriendsService) bu alanlar
+  // boş kalır — ekran normal çalışmaya devam eder, sadece arkadaş
+  // eklenemez.
+  String? myFriendCode;
+  List<FriendshipView> friendships = [];
+  Map<String, List<SharedStreakSummary>> _sharedByFriend = {};
+  bool friendsLoading = false;
+  String? friendsError;
+
+  List<FriendshipView> get incomingRequests => friendships
+      .where((f) => f.status == FriendshipStatus.pending && f.incoming)
+      .toList();
+  List<FriendshipView> get outgoingRequests => friendships
+      .where((f) => f.status == FriendshipStatus.pending && !f.incoming)
+      .toList();
+  List<FriendshipView> get acceptedFriends => friendships
+      .where((f) => f.status == FriendshipStatus.accepted)
+      .toList();
+
+  List<SharedStreakSummary> sharedStreaksOf(String friendId) =>
+      _sharedByFriend[friendId] ?? const [];
+
+  /// Arkadaş ekranı açıldığında çağrılır: profilimi (ve friend_code'umu)
+  /// garantiye alır, arkadaşlık kayıtlarını ve kabul edilen arkadaşların
+  /// paylaştığı streak'leri yükler.
+  Future<void> loadFriends() async {
+    if (!supabaseConfigured) return;
+    friendsLoading = true;
+    friendsError = null;
+    notifyListeners();
+    try {
+      myFriendCode = await friendsService.ensureProfile(userName);
+      friendships = await friendsService.loadFriendships();
+      final acceptedIds = acceptedFriends.map((f) => f.other.id).toList();
+      final shared = await friendsService.loadSharedStreaks(acceptedIds);
+      final grouped = <String, List<SharedStreakSummary>>{};
+      for (final s in shared) {
+        grouped.putIfAbsent(s.userId, () => []).add(s);
+      }
+      _sharedByFriend = grouped;
+    } catch (_) {
+      friendsError =
+          t('Arkadaşlar yüklenemedi. Tekrar dene.', 'Couldn\'t load friends. Try again.');
+    }
+    friendsLoading = false;
+    notifyListeners();
+  }
+
+  /// Bir arkadaşlık kodu ile istek gönderir. Başarılıysa null döner ve
+  /// listeyi tazeler; değilse kullanıcıya gösterilecek hatayı döndürür.
+  Future<String?> addFriendByCode(String code) async {
+    final err = await friendsService.sendRequestByCode(code);
+    if (err == null) await loadFriends();
+    return err;
+  }
+
+  Future<void> respondToFriendRequest(FriendshipView f,
+      {required bool accept}) async {
+    await friendsService.respondToRequest(f.id, accept: accept);
+    await loadFriends();
+  }
+
+  Future<void> removeFriend(FriendshipView f) async {
+    await friendsService.removeFriendship(f.id);
+    await loadFriends();
+  }
+
+  // ---------- Panik sinyali (sorumluluk ortağı) ----------
+
+  /// Arkadaşlardan gelen, son 24 saatlik "zorlanıyorum" sinyalleri.
+  List<PanicSignal> panicSignals = [];
+
+  /// Kriz anında arkadaşlara sinyal gönderir.
+  ///
+  /// DÜRÜSTLÜK NOTU: Anlık push bildirimi göndermez — arkadaş uygulamayı
+  /// bir sonraki açışında görür. Arayüz bunu kullanıcıya açıkça söyler;
+  /// "arkadaşın anında haberdar olacak" gibi tutulamayacak bir söz
+  /// vermek, tam da güvenin en kritik olduğu anda yalan söylemek olurdu.
+  Future<bool> sendPanicSignal(String streakName) =>
+      friendsService.sendPanicSignal(streakName);
+
+  Future<void> loadPanicSignals() async {
+    if (!supabaseConfigured) return;
+    try {
+      panicSignals = await friendsService.loadPanicSignals();
+      notifyListeners();
+    } catch (_) {
+      // Yok sayılır — arkadaş ekranı normal çalışmaya devam eder.
+    }
+  }
+
+  Future<void> acknowledgePanic(PanicSignal signal) async {
+    await friendsService.acknowledgePanic(signal.id);
+    await loadPanicSignals();
+  }
+
   // Mağaza puanı yalnızca bir kez istenir
   bool reviewAsked = false;
 
@@ -78,18 +215,123 @@ class AppState extends ChangeNotifier {
     }
     _save();
     notifyListeners();
+    // Sunucuyla senkronla (backend yoksa no-op). Streak silinmiş olabilir
+    // (paylaşımı kaldırırken) — bulunamazsa senkronizasyonu atla.
+    final matches = streaks.where((s) => s.id == id);
+    if (matches.isNotEmpty) {
+      friendsService.syncSharedStreak(matches.first,
+          shared: sharedStreakIds.contains(id));
+    }
   }
 
-  /// Ücretsiz sürümde en fazla bu kadar streak açılabilir.
-  static const freeStreakLimit = 2;
+  /// KALDIRILDI: Ücretsiz sürümdeki bırakma (streak) sayısı limiti.
+  ///
+  /// Eskiden 2 ile sınırlıydı. Kaldırıldı çünkü:
+  ///  • Bağımlılıklar kümelenir — sigarayı bırakan kişi genelde aynı anda
+  ///    alkolü/şekeri de bırakmaya çalışır. Üçüncüde duvara toslamak,
+  ///    kullanıcıyı en kırılgan anında cezalandırmaktır.
+  ///  • Bu tip "sayı kısıtı", satın almaya zorlamaktan başka bir amaca
+  ///    hizmet etmeyen yapay bir engeldi; ürettiği gelir minimal, ürettiği
+  ///    hayal kırıklığı büyüktü.
+  ///  • Premium artık "kaç tane takip edebildiğini" değil, "o takiplerin ne
+  ///    anlama geldiğini" (içgörü, öngörü, koçluk) satıyor.
+  /// Alan, eski kayıtlarla/koşullarla uyumluluk için tutulmuyor; tamamen
+  /// kaldırıldı ve [canAddStreak] her zaman true.
 
-  bool get canAddStreak => isPro || streaks.length < freeStreakLimit;
+  /// Aktif bir ödüllü-reklam Pro denemesi var mı (süresi dolmamış).
+  bool get proTrialActive =>
+      proTrialUntilMs != null &&
+      DateTime.now().millisecondsSinceEpoch < proTrialUntilMs!;
+
+  /// EFEKTİF Pro erişimi: kalıcı satın alma VEYA aktif geçici deneme.
+  /// Reklam gizleme, kilitli tema/özellik gibi tüm erişim kontrolleri bunu
+  /// kullanmalı (çıplak [isPro] yerine).
+  bool get hasPro => isPro || proTrialActive;
+
+  /// Aktif denemenin bitişine kalan süre (yoksa null).
+  Duration? get proTrialRemaining => proTrialActive
+      ? Duration(
+          milliseconds:
+              proTrialUntilMs! - DateTime.now().millisecondsSinceEpoch)
+      : null;
+
+  /// Artık herkes sınırsız bırakma takibi ekleyebilir (bkz. yukarıdaki not).
+  bool get canAddStreak => true;
+
+  /// Kullanıcının uygulamayı ilk açtığından bu yana geçen gün sayısı.
+  /// Premium tanıtımlarının zamanlamasında kullanılır: kullanıcı henüz
+  /// hiçbir başarı yaşamadan (ilk günlerde) satış yapmak hem dönüşümü
+  /// düşürür hem güveni zedeler. Tanıtımlar ancak kullanıcı gerçek bir
+  /// değer gördükten sonra gösterilir (bkz. [showPremiumPromos]).
+  int get daysSinceInstall {
+    final ms = createdAtMs;
+    if (ms == null) return 0;
+    return DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(ms))
+        .inDays;
+  }
+
+  /// Premium TANITIM kartları (ekranlardaki "Pro'ya geç" önerileri)
+  /// gösterilsin mi. Ödeme ekranının KENDİSİ her zaman erişilebilir kalır —
+  /// burada engellenen yalnızca davetsiz satış mesajlarıdır.
+  ///
+  /// 7 gün: kullanıcı ilk haftasını tamamlayıp ilk gerçek kazanımını
+  /// (seri, kazanılan para, atlatılan kriz) yaşadıktan sonra teklif çok daha
+  /// yüksek dönüşür ve rahatsız edici hissettirmez.
+  bool get showPremiumPromos => !hasPro && daysSinceInstall >= 7;
 
   AppState({required this.repo, required this.notifications});
+
+  /// Ödüllü reklam izlendiğinde çağrılır: [duration] kadar (varsayılan 4 saat)
+  /// geçici Pro açar. Zaten kalıcı Pro ise hiçbir şey yapmaz. Aktif bir deneme
+  /// varsa kalan süreye EKLEMEZ, yeni 4 saatlik pencereyi baştan başlatır
+  /// (izlemeyi sık tekrarlamaya teşvik = daha çok reklam geliri).
+  void grantProTrial([Duration duration = const Duration(hours: 4)]) {
+    if (isPro) return;
+    proTrialUntilMs =
+        DateTime.now().add(duration).millisecondsSinceEpoch;
+    _scheduleProTrialExpiry();
+    _save();
+    notifyListeners();
+  }
+
+  Timer? _proTrialTimer;
+
+  /// Deneme bitiş anında bir kez [notifyListeners] tetikler ki reklam/kilit
+  /// UI'ı anında güncellensin (aksi halde süre dolsa bile ekran bir sonraki
+  /// yeniden çizime kadar Pro görünmeye devam eder). load() ve grantProTrial
+  /// tarafından kurulur.
+  void _scheduleProTrialExpiry() {
+    _proTrialTimer?.cancel();
+    if (!proTrialActive) return;
+    _proTrialTimer = Timer(proTrialRemaining!, () {
+      notifyListeners();
+    });
+  }
+
+  /// AppState uygulama ömrü boyunca yaşayan tek bir örnek olsa da, testlerde
+  /// ve olası yeniden oluşturma senaryolarında zamanlayıcının açıkta kalıp
+  /// atılmış (disposed) bir nesne üzerinde notifyListeners çağırmasını
+  /// önlemek için iptal edilir.
+  @override
+  void dispose() {
+    _proTrialTimer?.cancel();
+    _proTrialTimer = null;
+    super.dispose();
+  }
 
   void setTheme(String id) {
     themeId = id;
     currentTheme = themeById(id);
+    _save();
+    notifyListeners();
+  }
+
+  /// Açık/koyu mod tercihini değiştirir. RC (yeni arayüz) ve MaterialApp'ın
+  /// themeMode'u bu değere göre güncellenir.
+  void setDarkMode(bool v) {
+    darkMode = v;
+    useDarkPalette = v;
     _save();
     notifyListeners();
   }
@@ -104,59 +346,162 @@ class AppState extends ChangeNotifier {
 
   // ---------- Yükleme / kaydetme ----------
 
+  /// Kalıcı veriyi (yerel ya da bulut) belleğe yükler.
+  ///
+  /// TÜM ayrıştırma bir try/catch içindedir. Buradaki her satır ham JSON
+  /// üzerinde tip dönüşümü (`as List`, `as int`, `as String`...) yapıyor;
+  /// tek bir bozuk/eski biçimli alan bile istisna fırlatır. Bu fonksiyon
+  /// `boot()` → `main()` zincirinde AWAIT edildiği için, korumasız haliyle
+  /// böyle bir istisna `runApp`'e hiç ulaşılmamasına — yani kullanıcının
+  /// uygulamayı BİR DAHA HİÇ AÇAMAMASINA — yol açardı. Üstelik bozuk veri
+  /// buluttan geldiyse (başka bir cihaz/eski sürüm yazmışsa) uygulamayı
+  /// silip yeniden kurmak bile çözmezdi. Ayrıştırma yarıda kalırsa o ana
+  /// kadar okunanlar korunur, kalan alanlar varsayılanlarında kalır ve
+  /// uygulama açılmaya devam eder.
   Future<void> load() async {
-    final data = await repo.loadAll();
-    if (data != null) {
-      streaks = ((data['streaks'] ?? []) as List)
+    LoadResult result;
+    try {
+      result = await repo.loadAll();
+    } catch (_) {
+      result = const LoadResult.failure();
+    }
+    _applyLoadedData(result.data);
+    if (localeOverride != null) T.en = localeOverride == 'en';
+    // Yeni veri yüklendi (veya hesap değişti) — eski hesabın/verinin seri
+    // hesapları asla yeni veriye taşınmamalı.
+    _invalidateStreakCache();
+    currentTheme = themeById(themeId);
+    useDarkPalette = darkMode;
+    _scheduleProTrialExpiry();
+    dailyRollover();
+    // Bildirim kurulumu ASLA açılışı engellememeli. Gerçek örnek: bildirim
+    // ikonu yanlış kaynak klasöründe olduğu için zonedSchedule
+    // PlatformException(invalid_icon) fırlattı; bu istisna load() →
+    // boot() → main() zincirinden yukarı çıkıp `runApp`'e hiç
+    // ulaşılamamasına, yani uygulamanın AÇILMAMASINA yol açtı
+    // (Sentry'de fatal olarak kaydedildi). Bildirimler çalışmasa bile
+    // uygulama çalışmalı.
+    try {
+      await applyNotificationSettings();
+    } catch (_) {
+      // Bildirimler bu oturumda kurulamadı; uygulama normal devam eder.
+    }
+    await hw.applyPendingWidgetToggles(this);
+    unawaited(hw.syncHomeWidget(this));
+    notifyListeners();
+  }
+
+  /// Tek bir alanın bozuk olması KALAN alanların hiç yüklenmemesine yol
+  /// açmamalı.
+  ///
+  /// Eskiden tüm ayrıştırma tek bir try/catch içindeydi: erken bir alanda
+  /// fırlayan istisna (ör. buluta `double` olarak yazılmış `proTrialUntilMs`,
+  /// ya da eski bir sürümün farklı biçimde yazdığı bir liste) ondan SONRA
+  /// gelen `onboarded`, `userName`, `themeId`, `streaks` gibi alanların hiç
+  /// okunmamasına yol açıyordu. Kullanıcı için bunun görüntüsü şuydu: tüm
+  /// verisi kaybolmuş ve uygulama onu onboarding'e geri atmış. Artık her alan
+  /// kendi başına korunuyor; bozuk bir alan yalnızca KENDİ varsayılanına
+  /// düşer, diğerleri normal yüklenir.
+  // Tip parametresi `V`: `T` bu projede yerelleştirme sınıfının adı
+  // (bkz. l10n.dart) — jenerik ad olarak kullanılırsa onu gölgeler.
+  V _field<V>(Map<String, dynamic> data, String key, V fallback,
+      V Function(Object raw) parse) {
+    final raw = data[key];
+    if (raw == null) return fallback;
+    try {
+      return parse(raw);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  void _applyLoadedData(Map<String, dynamic>? data) {
+    if (data == null) return;
+
+    streaks = _field(data, 'streaks', <Streak>[], (raw) {
+      return (raw as List)
           .map((e) => Streak.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      tasks = ((data['tasks'] ?? []) as List)
+    });
+    tasks = _field(data, 'tasks', <TaskItem>[], (raw) {
+      return (raw as List)
           .map((e) => TaskItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      doneByDate = ((data['doneByDate'] ?? {}) as Map).map(
-          (k, v) => MapEntry(k as String, (v as List).map((e) => e as int).toList()));
-      waterByDate = ((data['waterByDate'] ?? {}) as Map)
-          .map((k, v) => MapEntry(k as String, v as int));
-      weekly = ((data['weekly'] ?? []) as List)
+    });
+    doneByDate = _field(data, 'doneByDate', <String, List<int>>{}, (raw) {
+      return (raw as Map).map((k, v) => MapEntry(
+          k as String, (v as List).map((e) => (e as num).toInt()).toList()));
+    });
+    waterByDate = _field(data, 'waterByDate', <String, int>{}, (raw) {
+      return (raw as Map)
+          .map((k, v) => MapEntry(k as String, (v as num).toInt()));
+    });
+    weekly = _field(data, 'weekly', <WeeklyItem>[], (raw) {
+      return (raw as List)
           .map((e) => WeeklyItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      events = ((data['events'] ?? []) as List)
+    });
+    events = _field(data, 'events', <EventItem>[], (raw) {
+      return (raw as List)
           .map((e) => EventItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      if (data['water'] != null) {
-        water = WaterState.fromJson(Map<String, dynamic>.from(data['water']));
-      }
-      themeId = (data['themeId'] ?? 'alev') as String;
-      isPro = (data['isPro'] ?? false) as bool;
-      userName = (data['userName'] ?? '') as String;
-      createdAtMs = data['createdAtMs'] as int?;
-      waterLog = ((data['waterLog'] ?? {}) as Map).map((k, v) => MapEntry(
+    });
+    water = _field(data, 'water', water,
+        (raw) => WaterState.fromJson(Map<String, dynamic>.from(raw as Map)));
+    isPro = _field(data, 'isPro', false, (raw) => raw as bool);
+    // JSON round-trip'te sayılar double'a dönüşebildiği için `as int` yerine
+    // `num` üzerinden okunuyor.
+    proTrialUntilMs =
+        _field<int?>(data, 'proTrialUntilMs', null, (raw) => (raw as num).toInt());
+    // Kaydedilmiş bir tema tercihi yoksa (yeni kullanıcı): Pro ise
+    // 'Gece Yarısı' (pro tema), değilse 'Beyaz' (ücretsiz tema).
+    // Kilitli/pro bir temayı ücretsiz kullanıcıya varsayılan olarak
+    // vermemek için (bkz. themes_screen.dart'taki `locked` kontrolü).
+    themeId =
+        _field(data, 'themeId', isPro ? 'gece' : 'beyaz', (raw) => raw as String);
+    // Kayıtlı tercih yoksa açık mod (varsayılan 'beyaz' temayla tutarlı).
+    darkMode = _field(data, 'darkMode', false, (raw) => raw as bool);
+    userName = _field(data, 'userName', '', (raw) => raw as String);
+    createdAtMs =
+        _field<int?>(data, 'createdAtMs', null, (raw) => (raw as num).toInt());
+    waterLog =
+        _field(data, 'waterLog', <String, List<WaterLogEntry>>{}, (raw) {
+      return (raw as Map).map((k, v) => MapEntry(
           k as String,
           (v as List)
               .map((e) => WaterLogEntry.fromJson(Map<String, dynamic>.from(e)))
               .toList()));
-      pushNotifications = (data['pushNotifications'] ?? true) as bool;
-      dailyReminders = (data['dailyReminders'] ?? true) as bool;
-      sounds = (data['sounds'] ?? false) as bool;
-      haptics = (data['haptics'] ?? true) as bool;
-      weekStartsMonday = (data['weekStartsMonday'] ?? true) as bool;
-      localeOverride = data['localeOverride'] as String?;
-      onboarded = (data['onboarded'] ?? false) as bool;
-      checklistFullDays = ((data['checklistFullDays'] ?? []) as List)
-          .map((e) => e as String)
+    });
+    pushNotifications =
+        _field(data, 'pushNotifications', true, (raw) => raw as bool);
+    dailyReminders = _field(data, 'dailyReminders', true, (raw) => raw as bool);
+    sounds = _field(data, 'sounds', false, (raw) => raw as bool);
+    haptics = _field(data, 'haptics', true, (raw) => raw as bool);
+    weekStartsMonday =
+        _field(data, 'weekStartsMonday', true, (raw) => raw as bool);
+    localeOverride =
+        _field<String?>(data, 'localeOverride', null, (raw) => raw as String);
+    onboarded = _field(data, 'onboarded', false, (raw) => raw as bool);
+    checklistFullDays = _field(data, 'checklistFullDays', <String>[],
+        (raw) => (raw as List).map((e) => e as String).toList());
+    celebrated = _field(data, 'celebrated', <String, int>{}, (raw) {
+      return (raw as Map)
+          .map((k, v) => MapEntry(k as String, (v as num).toInt()));
+    });
+    sharedStreakIds = _field(data, 'sharedStreakIds', <int>{},
+        (raw) => (raw as List).map((e) => (e as num).toInt()).toSet());
+    reviewAsked = _field(data, 'reviewAsked', false, (raw) => raw as bool);
+    weeklyReportsSeen =
+        _field(data, 'weeklyReportsSeen', 0, (raw) => (raw as num).toInt());
+    triggerLog = _field(data, 'triggerLog', <TriggerEntry>[], (raw) {
+      return (raw as List)
+          .map((e) => TriggerEntry.fromJson(Map<String, dynamic>.from(e)))
           .toList();
-      celebrated = ((data['celebrated'] ?? {}) as Map)
-          .map((k, v) => MapEntry(k as String, v as int));
-      sharedStreakIds = ((data['sharedStreakIds'] ?? []) as List)
-          .map((e) => e as int)
-          .toSet();
-      reviewAsked = (data['reviewAsked'] ?? false) as bool;
-    }
-    if (localeOverride != null) T.en = localeOverride == 'en';
-    currentTheme = themeById(themeId);
-    dailyRollover();
-    await applyNotificationSettings();
-    notifyListeners();
+    });
+    adaptiveDismissed = _field(data, 'adaptiveDismissed', <String, int>{}, (raw) {
+      return (raw as Map)
+          .map((k, v) => MapEntry(k as String, (v as num).toInt()));
+    });
   }
 
   /// Bildirim ayarlarının (push + günlük hatırlatma) izin verdiği durumda
@@ -164,43 +509,237 @@ class AppState extends ChangeNotifier {
   /// hepsini iptal eder. Zamanlanan tüm hatırlatıcılar tek noktadan geçer.
   bool get remindersEnabled => pushNotifications && dailyReminders;
 
+  /// Hatırlatıcıları kurar. Her tür AYRI AYRI korunur: birinin başarısız
+  /// olması (izin yok, geçersiz ikon kaynağı, platform kanalı yok, tam
+  /// zamanlı alarm izni reddedilmiş...) diğerlerinin hiç kurulmamasına yol
+  /// açmamalı. Önceden tek bir `zonedSchedule` hatası tüm zinciri
+  /// koparıyor ve uygulamanın açılışını engelliyordu.
   Future<void> applyNotificationSettings() async {
+    Future<void> guard(Future<void> Function() task) async {
+      try {
+        await task();
+      } catch (_) {
+        // Bu hatırlatıcı türü kurulamadı; diğerleri denenmeye devam eder.
+      }
+    }
+
     if (remindersEnabled) {
-      await notifications.scheduleWaterReminders(water.intervalMinutes);
-      await notifications.scheduleCalendarReminders(weekly, events);
-      _scheduleEvening();
+      await guard(
+          () => notifications.scheduleWaterReminders(water.intervalMinutes));
+      await guard(
+          () => notifications.scheduleCalendarReminders(weekly, events));
+      await guard(() => notifications.scheduleWeeklyReport());
+      await guard(_scheduleRiskWindowIfAny);
+      try {
+        _scheduleEvening();
+      } catch (_) {}
     } else {
-      await notifications.cancelAllReminders();
+      await guard(() => notifications.cancelAllReminders());
     }
   }
 
+  /// Kişisel risk penceresi tespit edildiyse proaktif uyarıyı kurar.
+  ///
+  /// Yalnızca Pro kullanıcıya: bu, İçgörüler ekranındaki analizin bildirim
+  /// karşılığıdır ve o ekran Pro'dur. Ücretsiz kullanıcıya kilitli bir
+  /// özelliğin bildirimini göndermek hem tutarsız hem rahatsız edici olurdu.
+  ///
+  /// Yeterli veri yoksa (bkz. kMinSamples) hiçbir şey kurulmaz — az veriyle
+  /// yapılan yanlış bir uyarı, hiç uyarmamaktan kötüdür.
+  Future<void> _scheduleRiskWindowIfAny() async {
+    if (!hasPro || streaks.isEmpty) return;
+    final ins = computeInsights(triggerLog);
+    final w = ins.riskWindow;
+    if (!ins.hasEnoughData || w == null) return;
+    await notifications.scheduleRiskWindow(
+      hourStart: w.hourStart,
+      weekday: w.weekday,
+      streakName: streaks.first.name,
+    );
+  }
+
+  /// Tüm uygulama durumunun JSON haritası — hem [_save] (repo'ya yazma)
+  /// hem de hesap geçişlerinde (bkz. boot/onSignedIn/signOut) kullanılır.
+  Map<String, dynamic> _toMap() => {
+        'streaks': streaks.map((e) => e.toJson()).toList(),
+        'tasks': tasks.map((e) => e.toJson()).toList(),
+        'doneByDate': doneByDate,
+        'waterByDate': waterByDate,
+        'weekly': weekly.map((e) => e.toJson()).toList(),
+        'events': events.map((e) => e.toJson()).toList(),
+        'water': water.toJson(),
+        'waterLog': waterLog
+            .map((k, v) => MapEntry(k, v.map((e) => e.toJson()).toList())),
+        'themeId': themeId,
+        'isPro': isPro,
+        'proTrialUntilMs': proTrialUntilMs,
+        'darkMode': darkMode,
+        'userName': userName,
+        'createdAtMs': createdAtMs,
+        'pushNotifications': pushNotifications,
+        'dailyReminders': dailyReminders,
+        'sounds': sounds,
+        'haptics': haptics,
+        'weekStartsMonday': weekStartsMonday,
+        'localeOverride': localeOverride,
+        'onboarded': onboarded,
+        'checklistFullDays': checklistFullDays,
+        'celebrated': celebrated,
+        'sharedStreakIds': sharedStreakIds.toList(),
+        'reviewAsked': reviewAsked,
+        'weeklyReportsSeen': weeklyReportsSeen,
+        'triggerLog': triggerLog.map((e) => e.toJson()).toList(),
+        'adaptiveDismissed': adaptiveDismissed,
+      };
+
   Future<void> _save() async {
-    await repo.saveAll({
-      'streaks': streaks.map((e) => e.toJson()).toList(),
-      'tasks': tasks.map((e) => e.toJson()).toList(),
-      'doneByDate': doneByDate,
-      'waterByDate': waterByDate,
-      'weekly': weekly.map((e) => e.toJson()).toList(),
-      'events': events.map((e) => e.toJson()).toList(),
-      'water': water.toJson(),
-      'waterLog': waterLog
-          .map((k, v) => MapEntry(k, v.map((e) => e.toJson()).toList())),
-      'themeId': themeId,
-      'isPro': isPro,
-      'userName': userName,
-      'createdAtMs': createdAtMs,
-      'pushNotifications': pushNotifications,
-      'dailyReminders': dailyReminders,
-      'sounds': sounds,
-      'haptics': haptics,
-      'weekStartsMonday': weekStartsMonday,
-      'localeOverride': localeOverride,
-      'onboarded': onboarded,
-      'checklistFullDays': checklistFullDays,
-      'celebrated': celebrated,
-      'sharedStreakIds': sharedStreakIds.toList(),
-      'reviewAsked': reviewAsked,
-    });
+    // Her veri değişimi buradan geçiyor — seri (streak) önbelleğini burada
+    // temizlemek, önbelleğin bayatlamasına karşı tek ve güvenli nokta.
+    _invalidateStreakCache();
+    try {
+      await repo.saveAll(_toMap());
+    } catch (_) {
+      // Kayıt başarısız (disk dolu, bulut erişilemiyor, JSON'a çevrilemeyen
+      // alan...). Çoğu çağrı yeri bunu await ETMEDİĞİ için burada fırlayan
+      // hata "unhandled async exception" olarak kalırdı; boot() içindeki
+      // `await _save()` çağrılarında ise uygulamanın açılışını komple
+      // engelleyebilirdi. Veri bellekte doğru; bir sonraki değişiklikte
+      // yeniden yazılmaya çalışılır.
+    }
+  }
+
+  /// Diğer tüm alanları class alan varsayılanlarına döndürür — hesap
+  /// SAHİPLİĞİ değişirken (çıkış yapılırken ya da farklı/yeni bir hesaba
+  /// geçilirken) önceki hesabın verisinin cihazda/hafızada kalmaması için.
+  /// isPro/themeId/darkMode DA sıfırlanır: bunlar _toMap()/load() ile zaten
+  /// hesap başına buluta kaydediliyor, yani fiilen hesap verisi — biri
+  /// resetlenmezse yeni/farklı bir hesap bir öncekinin Pro durumunu ve
+  /// temasını miras alır (bkz. onSignedIn). Gerçek satın alma bu cihazda
+  /// geçerliyse onSignedIn() sonrasında Iap.restore() ile hemen geri gelir.
+  void _resetAccountScopedState() {
+    streaks = [];
+    tasks = [];
+    doneByDate = {};
+    waterByDate = {};
+    waterLog = {};
+    weekly = [];
+    events = [];
+    water = WaterState(date: todayKey());
+    checklistFullDays = [];
+    celebrated = {};
+    sharedStreakIds = {};
+    myFriendCode = null;
+    friendships = [];
+    _sharedByFriend = {};
+    userName = '';
+    createdAtMs = null;
+    reviewAsked = false;
+    weeklyReportsSeen = 0;
+    triggerLog = [];
+    adaptiveDismissed = {};
+    isPro = false;
+    proTrialUntilMs = null;
+    themeId = 'beyaz';
+    darkMode = false; // 'beyaz' temanın açık paletiyle tutarlı (bkz. alan tanımı)
+    currentTheme = themeById(themeId);
+    useDarkPalette = darkMode;
+  }
+
+  /// Uygulama açılışında (main.dart → bootRutin) çağrılır. Kalıcı bir
+  /// Supabase oturumu varsa (kullanıcı daha önce giriş yapmış ve uygulama
+  /// kapatılıp açılmış) doğrudan bulut deposunu kullanır; buluta hiç veri
+  /// yazılmamışsa (ör. bu hesap bu özellikten önce hep yerelde kullanılmış)
+  /// cihazdaki mevcut veriyi kaybetmemek için önce yerelden yükleyip
+  /// buluta TAŞIR (migration). Oturum yoksa her zamanki gibi yerel depoyu
+  /// kullanır.
+  Future<void> boot() async {
+    // Supabase yapılandırılmış görünse bile client henüz hazır değilse
+    // (initialize sessizce başarısız olduysa) `Supabase.instance` fırlatır;
+    // bu, main() zincirinde uygulamanın hiç açılmamasına yol açardı.
+    bool hasSession;
+    try {
+      hasSession = supabaseConfigured &&
+          Supabase.instance.client.auth.currentSession != null;
+    } catch (_) {
+      hasSession = false;
+    }
+    if (!hasSession) {
+      repo = const LocalRepository();
+      await load();
+      return;
+    }
+    final cloud = const CloudRepository();
+    LoadResult cloudResult;
+    try {
+      cloudResult = await cloud.loadAll();
+    } catch (_) {
+      cloudResult = const LoadResult.failure();
+    }
+
+    // Okuma BAŞARISIZ olduysa buluta hiçbir şey YAZILMAZ.
+    //
+    // Bu ayrım kritik: eskiden "veri gelmedi" ile "veri yok" aynı şeydi
+    // (ikisi de null) ve geçici bir ağ hatası şu felakete yol açıyordu —
+    // hesap yepyeni sanılır, cihazdaki (çoğu zaman boş) veri yüklenir ve
+    // hemen buluta yazılarak kullanıcının GERÇEK bulut verisi kalıcı olarak
+    // silinirdi. Artık okuma başarısızsa yalnızca cihazdaki kopyayla devam
+    // edilir; bulut olduğu gibi korunur ve bağlantı geri geldiğinde bir
+    // sonraki kayıt durumu normal şekilde senkronlar.
+    if (cloudResult.failed) {
+      repo = cloud;
+      await load();
+      return;
+    }
+    if (cloudResult.data != null) {
+      repo = cloud;
+      await load();
+      return;
+    }
+    // Okuma başarılı ve bu hesap için gerçekten kayıt yok: yereldeki mevcut
+    // veriyi yükleyip ilk kez buluta taşı (migration).
+    repo = const LocalRepository();
+    await load();
+    repo = cloud;
+    await _save();
+  }
+
+  /// Uygulama içinden başarılı bir giriş/kayıt/OAuth sonrası çağrılır
+  /// (bkz. ui/auth_screen.dart). Bu hesabın bulutta kayıtlı verisi varsa
+  /// onu yükler. Yoksa (yeni hesap) önce cihazda bir önceki hesaba/oturuma
+  /// ait kalmış olabilecek her şey (habit, Pro durumu, tema...) sıfırlanır
+  /// — böylece yeni bir hesap asla bir öncekinin Pro'sunu ya da temasını
+  /// miras almaz. Ardından bu cihazın gerçek Play/App Store satın alımı
+  /// varsa Iap.restore() onu bu hesap için hemen yeniden açar.
+  Future<void> onSignedIn() async {
+    if (!supabaseConfigured) return;
+    final cloud = const CloudRepository();
+    LoadResult cloudResult;
+    try {
+      cloudResult = await cloud.loadAll();
+    } catch (_) {
+      cloudResult = const LoadResult.failure();
+    }
+    _resetAccountScopedState();
+    repo = cloud;
+    if (cloudResult.failed) {
+      // Bulut okunamadı. Buraya `_save()` KOYULAMAZ: durum az önce
+      // sıfırlandığı için bu, kullanıcının bulut verisinin üzerine BOŞ bir
+      // belge yazıp hesabını kalıcı olarak boşaltmak olurdu. Veri yazmadan
+      // çık; bağlantı geri geldiğinde bir sonraki açılış/kayıt senkronlar.
+      notifyListeners();
+      unawaited(hw.syncHomeWidget(this));
+      return;
+    }
+    if (cloudResult.data != null) {
+      await load(); // load() zaten widget'ı senkronize eder
+    } else {
+      await _save();
+      // Yeni/boş hesap: load() çalışmadığı için widget'ı burada temizle,
+      // aksi halde önceki hesabın görevleri ana ekranda asılı kalır.
+      unawaited(hw.syncHomeWidget(this));
+    }
+    notifyListeners();
+    unawaited(Iap.instance.restore());
   }
 
   /// Tüm verinin JSON yedeği (dışa aktarma için).
@@ -216,15 +755,29 @@ class AppState extends ChangeNotifier {
       'events': events.map((e) => e.toJson()).toList(),
       'water': water.toJson(),
       'checklistFullDays': checklistFullDays,
+      // Tetikleyici/nüks kayıtları da dışa aktarılır: bunlar kullanıcının
+      // en hassas kişisel verisi (ne zaman, neden zorlandığı) ve GDPR veri
+      // taşınabilirliği kapsamında ona ait. Dışarıda bırakmak, "verini
+      // istediğin an indir" vaadini eksik bırakırdı.
+      'triggerLog': triggerLog.map((e) => e.toJson()).toList(),
     });
   }
 
   void _scheduleEvening() {
     if (!remindersEnabled) return;
     final total = todaysTasks.length;
-    notifications.scheduleEveningSummary(t(
-        '✅ $doneCount/$total görev • 💧 ${water.count}/${water.goal} bardak — günü tamamla, serini koru!',
-        '✅ $doneCount/$total tasks • 💧 ${water.count}/${water.goal} glasses — finish the day, keep the streak!'));
+    // scheduleEveningSummary ASYNC'tir ama burada await EDİLMEZ (bu metod void).
+    // Await edilmeyen bir Future'ın fırlattığı hata senkron try/catch'e DÜŞMEZ;
+    // doğrudan PlatformDispatcher.onError'a kaçıp uygulamayı FATAL olarak
+    // raporlar (gerçekte yaşandı: bazı cihazlarda bildirim ikonu kaynağı
+    // çözülemeyince `invalid_icon` fırladı ve fatal düştü). `.catchError` ile
+    // Future'ın hatasını burada yutuyoruz: bildirim kurulamazsa uygulama akışı
+    // etkilenmemeli.
+    notifications
+        .scheduleEveningSummary(t(
+            '✅ $doneCount/$total görev • 💧 ${water.count}/${water.goal} bardak — günü tamamla, serini koru!',
+            '✅ $doneCount/$total tasks • 💧 ${water.count}/${water.goal} glasses — finish the day, keep the streak!'))
+        .catchError((_) {});
   }
 
   void _calendarChanged() {
@@ -235,24 +788,34 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Gün değiştiyse su sayacını sıfırlar, 60 günden eski kayıtları temizler.
+  /// Gün değiştiyse su sayacını sıfırlar, 400 günden eski kayıtları temizler.
+  /// Değişiklik olmadıysa diske yazmaz (sık çağrılabilir — örn. her build'de).
   void dailyRollover() {
+    var changed = false;
     final t = todayKey();
+    // Gün dönmüş olabilir — seriler "bugüne" göre hesaplandığı için önbellek
+    // her rollover kontrolünde geçersiz kılınmalı (uygulama gece yarısını
+    // açıkken geçtiğinde bayat seri göstermemesi için).
+    _invalidateStreakCache();
     if (water.date != t) {
       water.date = t;
       water.count = 0;
+      changed = true;
     }
     for (final m in [doneByDate, waterByDate]) {
       final keys = m.keys.toList()..sort();
-      while (keys.length > 60) {
+      while (keys.length > 400) {
         m.remove(keys.removeAt(0));
+        changed = true;
       }
     }
     final logKeys = waterLog.keys.toList()..sort();
-    while (logKeys.length > 60) {
+    while (logKeys.length > 400) {
       waterLog.remove(logKeys.removeAt(0));
+      changed = true;
     }
-    _save();
+    if (changed) _save();
+    unawaited(hw.syncHomeWidget(this));
   }
 
   // ---------- Streak ----------
@@ -290,9 +853,109 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Kullanıcının kaç kez haftalık rapor açtığı. İlk rapor ücretsiz
+  /// gösterilir (değeri anlatmak yerine yaşatmak); sonrakiler Pro
+  /// (bkz. ui/weekly_report_screen.dart).
+  int weeklyReportsSeen = 0;
+
+  /// "Hedefini küçült" önerisi kullanıcı tarafından kapatılan görev id'leri.
+  /// Öneri reddedildikten sonra 30 gün boyunca tekrar gösterilmez —
+  /// aksi halde her açılışta aynı öneriyi görmek dırdıra dönüşür.
+  Map<String, int> adaptiveDismissed = {}; // 'taskId' -> epoch ms
+
+  /// Son 7 günde en az [minMisses] kez kaçırılmış, öneri gösterilmesi
+  /// anlamlı olan ilk görevi döndürür (yoksa null).
+  ///
+  /// Bu özellik, kategorideki en büyük terk sebebini hedefler: insanlar
+  /// alışkanlığı beceremediklerinde uygulamayı SİLERLER, çünkü uygulama
+  /// her açılışta başarısızlıklarını hatırlatır. Rakipler burada ceza
+  /// mekaniği (seri kırılması, kırmızı işaretler) kurar; biz uyarlanma
+  /// öneriyoruz — "hedefi küçültelim mi?".
+  TaskItem? adaptiveSuggestion({int minMisses = 4}) {
+    final now = DateTime.now();
+    for (final task in tasks) {
+      final dismissedAt = adaptiveDismissed['${task.id}'];
+      if (dismissedAt != null &&
+          now.millisecondsSinceEpoch - dismissedAt <
+              const Duration(days: 30).inMilliseconds) {
+        continue;
+      }
+      var misses = 0;
+      var active = 0;
+      for (var i = 0; i < 7; i++) {
+        final day = now.subtract(Duration(days: i));
+        if (!task.activeOn(mondayIndex(day))) continue;
+        active++;
+        if (!(doneByDate[todayKey(day)] ?? const <int>[]).contains(task.id)) {
+          misses++;
+        }
+      }
+      // En az 5 aktif gün olsun ki "yeni eklenmiş alışkanlık" için
+      // haksız bir öneri çıkmasın.
+      if (active >= 5 && misses >= minMisses) return task;
+    }
+    return null;
+  }
+
+  void dismissAdaptiveSuggestion(TaskItem task) {
+    adaptiveDismissed['${task.id}'] = DateTime.now().millisecondsSinceEpoch;
+    _save();
+    notifyListeners();
+  }
+
+  /// Kriz/nüks bağlam kaydı ekler (bkz. TriggerEntry, ui/trigger_sheet.dart).
+  ///
+  /// Kayıt sayısı 500 ile sınırlanır — bu veri buluta JSON olarak yazıldığı
+  /// için sınırsız büyümesi hem senkronizasyonu yavaşlatır hem de depolama
+  /// kotasını şişirir. En eski kayıtlar düşer; desen analizi zaten güncel
+  /// veriye dayanır.
+  void addTriggerEntry({
+    required int streakId,
+    required String trigger,
+    required bool survived,
+  }) {
+    triggerLog.add(TriggerEntry(
+      streakId: streakId,
+      atMs: DateTime.now().millisecondsSinceEpoch,
+      trigger: trigger,
+      survived: survived,
+    ));
+    while (triggerLog.length > 500) {
+      triggerLog.removeAt(0);
+    }
+    _save();
+    notifyListeners();
+  }
+
+  void markWeeklyReportSeen() {
+    weeklyReportsSeen++;
+    _save();
+    // notifyListeners ÇAĞRILMIYOR: bu, ekran ilk çizildikten hemen sonra
+    // (postFrameCallback) tetikleniyor; burada dinleyicileri uyandırmak
+    // aynı karede ikinci bir yeniden çizim başlatıp raporun kilit
+    // durumunun gözle görülür şekilde "atlamasına" yol açardı. Sayaç bir
+    // sonraki açılışta zaten güncel okunur.
+  }
+
+  /// "Geleceğe Mektup"u kaydeder (bkz. Streak.letter). Boş metin mektubu
+  /// siler. Nüks (resetStreak) mektuba DOKUNMAZ — kullanıcının kendine
+  /// yazdığı söz, düştüğünde silinmemeli; asıl o an lazım olur.
+  void setStreakLetter(Streak s, String letter) {
+    s.letter = letter.trim();
+    _save();
+    notifyListeners();
+  }
+
   /// Sıfırlar; sıfırlanan seri gün sayısını döndürür. Nüksetme sayacını artırır.
   int resetStreak(Streak s) {
     final days = s.days;
+    // Nüks: churn'ün en güçlü öncü sinyali. Kaçıncı nükste ve kaç gün sonra
+    // olduğu, geri kazanım akışını tasarlamak için gerekli. Bırakılan şeyin
+    // ADI ASLA gönderilmez — yalnızca sayılar.
+    Analytics.instance.log(Ev.streakRelapse, {
+      'days': days,
+      'relapse_no': s.relapses + 1,
+    });
     if (days > s.bestDays) s.bestDays = days;
     s.relapses++;
     s.start = DateTime.now();
@@ -350,7 +1013,25 @@ class AppState extends ChangeNotifier {
   /// Bir görevin bugünden geriye kesintisiz tamamlanma serisi (gün).
   /// Yalnızca görevin aktif olduğu günler sayılır; aktif olmayan günler
   /// seriyi bozmaz, atlanır. Bugün henüz işaretlenmediyse dünden başlar.
+  /// [taskStreak] sonuç önbelleği. Bu hesap her çağrıda 2000 güne kadar
+  /// geriye gidip her gün için tarih anahtarı üretebiliyor; ana ekranda hem
+  /// her alışkanlık satırı hem [maxHabitStreak] hem de rozet/analitik
+  /// hesapları bunu ARKA ARKAYA çağırdığı için her yeniden çizimde aynı iş
+  /// onlarca kez tekrarlanıyordu. Veri her değiştiğinde
+  /// ([_invalidateStreakCache], toggleTask/load/dailyRollover) temizlenir.
+  final Map<int, int> _streakCache = {};
+
+  void _invalidateStreakCache() => _streakCache.clear();
+
   int taskStreak(TaskItem task) {
+    final cached = _streakCache[task.id];
+    if (cached != null) return cached;
+    final computed = _computeTaskStreak(task);
+    _streakCache[task.id] = computed;
+    return computed;
+  }
+
+  int _computeTaskStreak(TaskItem task) {
     var streak = 0;
     var day = DateTime.now();
     // Bugün aktif ve işaretlenmemişse seriyi dünden say (henüz gün bitmedi).
@@ -390,6 +1071,9 @@ class AppState extends ChangeNotifier {
       done.remove(task.id);
     } else {
       done.add(task.id);
+      // Ana etkileşim olayı — D1/D7/D30 retention'ın anlamlı tanımı
+      // "uygulamayı açtı" değil, "gerçekten kullandı"dır.
+      Analytics.instance.log(Ev.habitCheck, {'streak': taskStreak(task)});
       final today = todaysTasks;
       if (today.isNotEmpty && doneCount == today.length && pushNotifications) {
         notifications.showNow(t('🎉 Tebrikler!', '🎉 Congrats!'),
@@ -406,6 +1090,7 @@ class AppState extends ChangeNotifier {
     }
     _scheduleEvening();
     _save();
+    unawaited(hw.syncHomeWidget(this));
     notifyListeners();
   }
 
@@ -463,8 +1148,30 @@ class AppState extends ChangeNotifier {
           id: DateTime.now().millisecondsSinceEpoch + tasks.length, name: name));
     }
     onboarded = true;
+    // Huninin en kritik dönüm noktası: kullanıcı kuruluma kadar geldi.
+    // Kaç alışkanlıkla başladığı, ilerideki retention'ın en güçlü
+    // yordayıcılarından biridir (SAYI gönderilir, isim ASLA).
+    Analytics.instance.log(Ev.onboardingComplete, {
+      'streaks': streaks.length,
+      'tasks': tasks.length,
+    });
     _save();
     notifyListeners();
+    // Bildirim izni TAM BURADA isteniyor: kullanıcı artık ne takip edeceğini
+    // seçmiş durumda, dolayısıyla "sana bunu hatırlatalım mı?" sorusunun bir
+    // karşılığı var. Açılışta bağlamsız sorulduğunda ret oranı çok daha
+    // yüksekti (bkz. main.dart'taki açıklama). İzin verilirse hatırlatıcılar
+    // hemen kurulur.
+    unawaited(_requestNotificationsAfterOnboarding());
+  }
+
+  Future<void> _requestNotificationsAfterOnboarding() async {
+    try {
+      await notifications.requestPermission();
+      await applyNotificationSettings();
+    } catch (_) {
+      // İzin alınamadı ya da zamanlama kurulamadı; uygulama normal çalışır.
+    }
   }
 
   void deleteTask(TaskItem t) {
@@ -480,12 +1187,36 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------- Su ----------
+  //
+  // ÖNEMLİ: `water.count` ("bardak" sayacı) artık asla elle artırıp
+  // azaltılmıyor. Eskiden her ekleme/kaldırmada ml'yi 250'ye bölüp
+  // yuvarlayarak (en az 1 bardak) sayaca +/- ekleniyordu — bu, art arda
+  // küçük miktarlar eklenip kaldırıldığında gerçek toplam ml'den sapan
+  // (genelde şişen) bir sayaç üretiyordu; "iptal et" bir eklemeyi tam
+  // olarak geri almıyordu. Artık sayaç HER zaman [todaysWaterLog]'daki
+  // gerçek ml toplamından yeniden HESAPLANIYOR (_recomputeWaterFromLog),
+  // bu yüzden ekleme/kaldırma birbirinin birebir tersi — sapma imkansız.
 
-  void addWater(int n) {
-    dailyRollover();
-    water.count = (water.count + n).clamp(0, 99);
-    waterByDate[todayKey()] = water.count;
-    if (n > 0 && water.count == water.goal && pushNotifications) {
+  /// Bugünün su kayıt defteri (en yeni önce).
+  List<WaterLogEntry> get todaysWaterLog =>
+      waterLog.putIfAbsent(todayKey(), () => []);
+
+  /// Bugün gerçekten içilen toplam su (ml) — kayıt defterinden toplanır.
+  int get todaysWaterMl =>
+      todaysWaterLog.fold<int>(0, (a, e) => a + e.ml);
+
+  /// [todaysWaterLog]'daki gerçek ml toplamından bardak sayacını yeniden
+  /// hesaplar (elle +/- değil, her zaman SET eder). Hedefe yeni ulaşıldıysa
+  /// bildirim gösterir.
+  void _recomputeWaterFromLog() {
+    final prevCount = water.count;
+    final newCount = (todaysWaterMl / 250).round().clamp(0, 99);
+    water.count = newCount;
+    waterByDate[todayKey()] = newCount;
+    if (newCount > prevCount &&
+        newCount >= water.goal &&
+        prevCount < water.goal &&
+        pushNotifications) {
       notifications.showNow(t('💧 Hedef tamam!', '💧 Goal reached!'),
           t('Bugünkü su hedefine ulaştın. Süpersin!', 'You hit today\'s water goal. Awesome!'));
     }
@@ -494,29 +1225,23 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Bugünün su kayıt defteri (en yeni önce).
-  List<WaterLogEntry> get todaysWaterLog =>
-      waterLog.putIfAbsent(todayKey(), () => []);
-
-  /// Belirli ml miktarında su ekler: bardak sayacını (250 ml/bardak, en az 1)
-  /// artırır ve kayıt defterine tam ml değerini işler. Yeni arayüz için.
+  /// Belirli ml miktarında su ekler: gerçek miktar kayıt defterine işlenir,
+  /// bardak sayacı deftere göre yeniden hesaplanır.
   void addWaterMl(int ml) {
     if (ml <= 0) return;
     dailyRollover();
-    final glasses = (ml / 250).round().clamp(1, 99);
     final now = DateTime.now();
     final time =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     todaysWaterLog.insert(0, WaterLogEntry(ml: ml, time: time));
-    addWater(glasses); // sayaç + hedef bildirimi + kaydet + notify
+    _recomputeWaterFromLog();
   }
 
-  /// Bir su kaydını geri alır (sayaç ve defterden düşer).
+  /// Bir su kaydını geri alır (kayıt defterinden çıkarır, sayaç deftere
+  /// göre yeniden hesaplanır — eklemenin birebir tersi).
   void removeWaterLog(WaterLogEntry e) {
-    final log = todaysWaterLog;
-    if (log.remove(e)) {
-      final glasses = (e.ml / 250).round().clamp(1, 99);
-      addWater(-glasses);
+    if (todaysWaterLog.remove(e)) {
+      _recomputeWaterFromLog();
     }
   }
 
@@ -662,33 +1387,46 @@ class AppState extends ChangeNotifier {
     return b.difference(a).inDays + 1;
   }
 
-  /// Çıkış: onboarding'e döner, veriyi silmez.
+  /// Çıkış: bulut oturumunu kapatır (yapılandırılmışsa), onboarding'e
+  /// döner, yerel veriyi silmez.
+  /// Bulut oturumunu kapatır ve bu hesaba ait veriyi cihazdan temizler.
+  /// Veri zaten bulutta (bkz. onSignedIn/_save) yedekli olduğu için
+  /// kaybolmaz — aynı hesaba tekrar giriş yapıldığında [onSignedIn] onu
+  /// geri yükler. Bu temizlik, farklı bir hesapla giriş yapıldığında bir
+  /// önceki hesabın verisinin cihazda görünmeye devam etmesini
+  /// (hesap-değiştirme sızıntısı) engeller.
   Future<void> signOut() async {
+    await authService.signOut();
+    _resetAccountScopedState();
+    repo = const LocalRepository();
     onboarded = false;
     await _save();
+    // Ana ekran widget'ı ayrı bir depoda (SharedPreferences/App Group)
+    // yaşıyor; temizlenmezse çıkış yapan kullanıcının alışkanlık isimleri
+    // telefonun ana ekranında görünmeye devam ederdi.
+    unawaited(hw.syncHomeWidget(this));
     notifyListeners();
   }
 
-  /// Hesabı ve tüm yerel veriyi tamamen siler.
-  Future<void> wipeAllData() async {
-    streaks = [];
-    tasks = [];
-    doneByDate = {};
-    waterByDate = {};
-    waterLog = {};
-    weekly = [];
-    events = [];
-    water = WaterState(date: todayKey());
-    checklistFullDays = [];
-    celebrated = {};
-    sharedStreakIds = {};
+  /// Hesabı ve tüm veriyi (yerel + bulut) tamamen siler. Supabase
+  /// yapılandırılmışsa önce sunucudaki hesabı da siler (Play/App Store
+  /// zorunluluğu) — `app_data` satırı da `on delete cascade` ile otomatik
+  /// silinir; bu çağrı başarısız olsa bile yerel temizlik yine de
+  /// tamamlanır.
+  /// Sunucudaki hesap da gerçekten silinebildiyse `true` döner. `false`
+  /// dönerse cihaz temizlenmiştir ama bulut hesabı durmaktadır ve arayüz
+  /// bunu kullanıcıya SÖYLEMEK zorundadır (bkz. settings_screen.dart).
+  Future<bool> wipeAllData() async {
+    final serverDeleted = await authService.deleteAccount();
+    _resetAccountScopedState();
+    repo = const LocalRepository();
     isPro = false;
     onboarded = false;
-    userName = '';
-    createdAtMs = null;
-    reviewAsked = false;
     await _save();
     await notifications.cancelAllReminders();
+    // Hesap silindi — widget'taki kalıntı veriyi de temizle (bkz. signOut).
+    unawaited(hw.syncHomeWidget(this));
     notifyListeners();
+    return serverDeleted;
   }
 }

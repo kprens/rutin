@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../analytics.dart';
 import '../auth.dart';
 import '../l10n.dart';
 import '../store.dart';
@@ -74,21 +75,44 @@ class _AuthScreenState extends State<AuthScreen> {
           ));
   }
 
-  Future<void> _oauth(Future<AuthResult> Function() call) => _run(call);
+  Future<void> _oauth(Future<AuthResult> Function() call,
+          {required String method}) =>
+      _run(call, method: method);
 
   /// Ortak yürütücü: yükleniyor durumunu yönetir, sonucu işler, başarılıysa
   /// onboarding'i tamamlayıp ana ekrana geçer.
-  Future<void> _run(Future<AuthResult> Function() call) async {
+  Future<void> _run(Future<AuthResult> Function() call,
+      {String method = 'email'}) async {
     if (_busy) return;
     setState(() => _busy = true);
+    Analytics.instance
+        .log(Ev.authStart, {'method': method, 'mode': _isSignUp ? 'signup' : 'signin'});
     final result = await call();
-    if (!mounted) return;
-    setState(() => _busy = false);
-
     if (!result.ok) {
-      _toast(result.error ?? t('Bir şeyler ters gitti.', 'Something went wrong.'));
+      // Hata METNİ gönderilmez (sağlayıcıya göre değişen serbest metin,
+      // e-posta içerebilir); yalnızca iptal mi gerçek hata mı ayrımı.
+      Analytics.instance.log(Ev.authFail, {
+        'method': method,
+        'reason': (result.error ?? '').isEmpty ? 'cancelled' : 'error',
+      });
+      if (!mounted) return;
+      setState(() => _busy = false);
+      // Boş hata mesajı = kullanıcı akışı kendi iptal etti (ör. Apple giriş
+      // sayfasını kapattı). Bu bir arıza değil; uyarı göstermek kullanıcıyı
+      // yaptığı şey yanlışmış gibi hissettirir.
+      final msg = result.error;
+      if (msg != null && msg.isEmpty) return;
+      _toast(msg ?? t('Bir şeyler ters gitti.', 'Something went wrong.'));
       return;
     }
+    Analytics.instance.log(Ev.authSuccess,
+        {'method': method, 'mode': _isSignUp ? 'signup' : 'signin'});
+    // Bu hesabın bulutta kayıtlı verisi varsa yükler (cihazdaki önceki
+    // oturuma ait veri tamamen değiştirilir); yoksa şu anki cihaz verisini
+    // bu hesaba ilk kez taşır. Backend yapılandırılmamışsa no-op.
+    await context.read<AppState>().onSignedIn();
+    if (!mounted) return;
+    setState(() => _busy = false);
     // Backend yokken de kullanıcıyı yerelde kurar; Supabase geldiğinde
     // oturum zaten açılmış olur, bu satır profil adını yazmaya devam eder.
     context
@@ -107,7 +131,7 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       backgroundColor: RC.bg,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF1C1B3A), RC.bg],
             begin: Alignment.topCenter,
@@ -132,7 +156,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           blurRadius: 28),
                     ],
                   ),
-                  child: const Text('✨', style: TextStyle(fontSize: 32)),
+                  child: const Icon(Icons.auto_awesome_rounded, size: 32, color: Colors.white),
                 ),
               ),
               const SizedBox(height: 22),
@@ -166,7 +190,7 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(height: 24),
 
               _busy
-                  ? const Center(
+                  ? Center(
                       child: Padding(
                         padding: EdgeInsets.all(8),
                         child: CircularProgressIndicator(
@@ -182,25 +206,27 @@ class _AuthScreenState extends State<AuthScreen> {
 
               Row(
                 children: [
-                  const Expanded(child: Divider(color: RC.stroke)),
+                  Expanded(child: Divider(color: RC.stroke)),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Text(t('veya şununla devam et', 'or continue with'),
-                        style: const TextStyle(color: RC.muted, fontSize: 13)),
+                        style: TextStyle(color: RC.muted, fontSize: 13)),
                   ),
-                  const Expanded(child: Divider(color: RC.stroke)),
+                  Expanded(child: Divider(color: RC.stroke)),
                 ],
               ),
               const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
-                      child: _social('🔍  Google',
-                          () => _oauth(authService.signInWithGoogle))),
+                      child: _social(Icons.g_mobiledata, 'Google',
+                          () => _oauth(authService.signInWithGoogle,
+                              method: 'google'))),
                   const SizedBox(width: 14),
                   Expanded(
-                      child: _social('🍎  Apple',
-                          () => _oauth(authService.signInWithApple))),
+                      child: _social(Icons.apple, 'Apple',
+                          () => _oauth(authService.signInWithApple,
+                              method: 'apple'))),
                 ],
               ),
               const SizedBox(height: 24),
@@ -218,12 +244,12 @@ class _AuthScreenState extends State<AuthScreen> {
                                   'Already have an account? ')
                               : t('Hesabın yok mu? ', "Don't have an account? "),
                           style:
-                              const TextStyle(color: RC.muted, fontSize: 14)),
+                              TextStyle(color: RC.muted, fontSize: 14)),
                       TextSpan(
                           text: _isSignUp
                               ? t('Giriş yap', 'Sign in')
                               : t('Kayıt ol', 'Sign up'),
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: RC.purpleBright,
                               fontSize: 14,
                               fontWeight: FontWeight.w700)),
@@ -244,31 +270,31 @@ class _AuthScreenState extends State<AuthScreen> {
       controller: ctrl,
       obscureText: obscure,
       keyboardType: keyboard,
-      style: const TextStyle(color: RC.text),
+      style: TextStyle(color: RC.text),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: RC.muted),
+        hintStyle: TextStyle(color: RC.muted),
         filled: true,
         fillColor: RC.card,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: RC.stroke),
+          borderSide: BorderSide(color: RC.stroke),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: RC.stroke),
+          borderSide: BorderSide(color: RC.stroke),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: RC.purple),
+          borderSide: BorderSide(color: RC.purple),
         ),
       ),
     );
   }
 
-  Widget _social(String label, VoidCallback onTap) => GestureDetector(
+  Widget _social(IconData icon, String label, VoidCallback onTap) => GestureDetector(
         onTap: _busy ? null : onTap,
         child: Container(
           height: 58,
@@ -278,9 +304,16 @@ class _AuthScreenState extends State<AuthScreen> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: RC.stroke),
           ),
-          child: Text(label,
-              style: const TextStyle(
-                  color: RC.text, fontWeight: FontWeight.w600, fontSize: 15)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 20, color: RC.text),
+              const SizedBox(width: 8),
+              Text(label,
+                  style: TextStyle(
+                      color: RC.text, fontWeight: FontWeight.w600, fontSize: 15)),
+            ],
+          ),
         ),
       );
 }
