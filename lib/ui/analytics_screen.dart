@@ -172,7 +172,7 @@ class AnalyticsScreen extends StatelessWidget {
               Row(
                 children: [
                   Text(t('Az', 'Less'),
-                      style: const TextStyle(color: RC.muted, fontSize: 12)),
+                      style: TextStyle(color: RC.muted, fontSize: 12)),
                   const SizedBox(width: 8),
                   for (var v = 0; v <= 4; v++) ...[
                     Container(
@@ -187,7 +187,7 @@ class AnalyticsScreen extends StatelessWidget {
                   ],
                   const SizedBox(width: 3),
                   Text(t('Çok', 'More'),
-                      style: const TextStyle(color: RC.muted, fontSize: 12)),
+                      style: TextStyle(color: RC.muted, fontSize: 12)),
                 ],
               ),
             ],
@@ -207,13 +207,13 @@ class AnalyticsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(color: RC.muted, fontSize: 13)),
+            Text(label, style: TextStyle(color: RC.muted, fontSize: 13)),
             const SizedBox(height: 8),
             Text(value,
                 style: TextStyle(
                     fontSize: 30, fontWeight: FontWeight.w800, color: color)),
             const SizedBox(height: 4),
-            Text(sub, style: const TextStyle(color: RC.muted, fontSize: 12)),
+            Text(sub, style: TextStyle(color: RC.muted, fontSize: 12)),
           ],
         ),
       ),
@@ -245,7 +245,7 @@ class AnalyticsScreen extends StatelessWidget {
                 child: Container(
                   width: 18,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [RC.purpleBright, RC.purple],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -258,7 +258,7 @@ class AnalyticsScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(label, style: const TextStyle(color: RC.muted, fontSize: 12)),
+        Text(label, style: TextStyle(color: RC.muted, fontSize: 12)),
       ],
     );
   }

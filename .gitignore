@@ -45,3 +45,11 @@ app.*.map.json
 /android/app/release
 key.properties
 *.jks
+
+# Release build script — gerçek Supabase anon key ve Sentry DSN içerir.
+# İkisi de istemci binary'sinde zaten bulunur (gerçek "sır" değildir) ama
+# repoya girmemeli: dosyanın kendi başlığı da bunu söylüyor.
+build_release.sh
+
+# Supabase CLI yerel önbelleği (proje ref, pooler url, sürüm bilgileri).
+supabase/.temp/

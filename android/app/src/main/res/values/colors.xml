@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#E25428</color>
+    <color name="ic_launcher_background">#02081B</color>
+    <!-- Cold start splash zemini — uygulamanın koyu lacivert kimliğiyle
+         eşleşir. Eskiden beyazdı ve açılışta bir anlık beyaz çakma oluyordu. -->
+    <color name="splash_background">#02081B</color>
 </resources>

@@ -15,7 +15,12 @@ plugins {
 
 android {
     namespace = "com.alper.rutin"
-    compileSdk = flutter.compileSdkVersion
+    // compileSdk = DERLEME zamanında hangi API'lerin görünür olduğunu belirler;
+    // uygulamanın çalışma davranışını (targetSdk) veya desteklenen en düşük
+    // cihazı (minSdk) DEĞİŞTİRMEZ. google_mobile_ads, in_app_purchase_android,
+    // sentry_flutter vb. bağımlılıklar AAR metadata'da compileSdk >= 36
+    // istediği için 36'ya çekildi. targetSdk hâlâ 35 (Google Play 2025+ zorunlu).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -27,12 +32,27 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.alper.rutin"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // google_mobile_ads 9.x en az API 23 gerektirir; flutter.minSdkVersion
+        // bazı sürümlerde 21 döndüğünden manifest birleştirme release'de
+        // başarısız olabiliyordu — bu yüzden minSdk açıkça 23'e sabitlendi.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        // Google Play zorunluluğu: 31 Ağustos 2026'dan itibaren yeni uygulama
+        // ve güncellemeler Android 16'yı (API 36) hedeflemek zorunda. compileSdk
+        // zaten 36 olduğu için bu değişiklik düşük riskli.
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // AdMob Uygulama Kimliği (com.google.android.gms.ads.APPLICATION_ID).
+        // Gerçek admob.google.com kimliğinizi vermek için:
+        //   flutter build apk -PADMOB_APP_ID=ca-app-pub-XXXX~YYYY
+        // veya android/gradle.properties içine `ADMOB_APP_ID=ca-app-pub-XXXX~YYYY`
+        // ekleyin. Verilmezse Google'ın TEST kimliğine düşer (mağazaya bu
+        // haliyle gönderilmemeli).
+        manifestPlaceholders["admobAppId"] =
+            (project.findProperty("ADMOB_APP_ID") as String?)
+                ?: System.getenv("ADMOB_APP_ID")
+                ?: "ca-app-pub-3940256099942544~3347511713"
     }
 
     

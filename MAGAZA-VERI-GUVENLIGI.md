@@ -1,76 +1,131 @@
-# Rutin — Veri Güvenliği / App Privacy Cevap Taslağı
+# Rutin — Veri Güvenliği / App Privacy Referansı
 
-Hem Google Play "Data Safety" hem Apple "App Privacy" formu, uygulamanın hangi
-veriyi topladığını/paylaştığını soruyor. Cevap, **hangi özelliklerin açık
-olduğuna** bağlı. Kodda şu an `Ads.init()`, `Social.init()` ve Sentry (boş DSN)
-**kapalı**. Bu yüzden iki senaryo hazırladım.
+Bu belge, Google Play "Veri Güvenliği" ve Apple "App Privacy" formlarında
+verilen cevapların **gerekçeli kaydıdır**. Her iki form da doldurulmuş
+durumda; burası ileride bir özellik eklendiğinde neyin güncellenmesi
+gerektiğini gösteren referanstır.
 
-> Önemli ayrım: Play'de "veri toplama" = verinin **cihaz dışına gönderilmesi**.
-> Sadece cihazda `shared_preferences` ile saklanan görev/su/streak verisi
-> "toplanan veri" SAYILMAZ.
-
----
-
-## SENARYO A — Minimal Yayın (önerilen ilk sürüm)
-Reklam, sosyal katman ve çökme raporlama KAPALI. Tüm veri yalnızca cihazda kalır.
-
-### Google Play — Data Safety
-- Does your app collect or share any user data? → **No**
-- (Tüm veri cihazda; dışarı gönderilmiyor.)
-- Data encrypted in transit? → Uygulanmaz (veri gönderilmiyor)
-- Users can request data deletion? → Uygulama içi "Verileri dışa aktar" var;
-  silme, uygulamayı kaldırınca gerçekleşir.
-
-### Apple — App Privacy
-- Data collection → **Data Not Collected** seç.
-- (Nutrition label: "No Data Collected".)
-
-Bu senaryo hem en hızlı onaylanır hem de "No Data Collected / Veri Toplanmıyor"
-rozeti güçlü bir güven mesajıdır. İlk sürümü böyle çıkar, ads/social'ı sonraki
-güncellemede aç.
+> **Kritik kural:** Formdaki beyan ile kodun yaptığı iş birbirini tutmazsa
+> bu bir politika ihlalidir (App Store 5.1.1 / Play Kullanıcı Verileri).
+> Cihaz dışına yeni bir veri gönderen her özellik eklendiğinde bu belge ve
+> HER İKİ form güncellenmelidir.
 
 ---
 
-## SENARYO B — Tam Yayın (Reklam + Sosyal + Çökme raporu açık)
-`Ads.init()` (AdMob), `Social.init()` (Supabase arkadaş/liderlik) ve Sentry açık.
+## 1. Uygulamanın gerçekte topladığı veriler
 
-### Google Play — Data Safety
-Does your app collect or share user data? → **Yes**
+### Yalnızca cihazda kalanlar
 
-| Veri türü | Toplanır | Paylaşılır | Amaç | Zorunlu? |
-|---|---|---|---|---|
-| Ad / kullanıcı adı (sosyal profil) | Evet | Hayır | Uygulama işlevi (arkadaş/liderlik) | Opsiyonel (sadece sosyal kullanılırsa) |
-| Uygulama etkinliği (streak/görev — paylaşılan) | Evet | Hayır | Uygulama işlevi | Opsiyonel |
-| Cihaz veya diğer kimlikler (reklam ID) | Evet | Evet (AdMob/Google) | Reklam | Zorunlu (ücretsiz sürüm) |
-| Uygulama performansı (çökme günlükleri) | Evet | Hayır | Analiz / hata ayıklama | Opsiyonel |
-| Yaklaşık konum (AdMob'un IP tabanlı) | Evet (AdMob) | Evet | Reklam | Zorunlu |
+Hesap oluşturulmadıysa bunların hiçbiri cihaz dışına çıkmaz — Play'in
+tanımına göre "toplama" sayılmaz.
 
-- Data encrypted in transit? → **Evet** (Supabase/AdMob HTTPS)
-- Users can request data deletion? → **Evet** (sosyal veri için Supabase'den
-  silme; uygulama içi dışa aktarma + kaldırınca yerel silme)
+| Veri | Saklama |
+|---|---|
+| Alışkanlıklar, günlük işaretlemeler, seriler | `shared_preferences` |
+| Bırakma (recovery) kayıtları, nüks sayısı | `shared_preferences` |
+| Su takibi, takvim, haftalık program | `shared_preferences` |
+| **Kriz/tetikleyici kayıtları** (`triggerLog`) | `shared_preferences` |
+| **"Geleceğe Mektup"** (`Streak.letter`) | `shared_preferences` |
+| Tema, dil, bildirim tercihleri | `shared_preferences` |
 
-### Apple — App Privacy
-- **Data Used to Track You** (ATT gerektirir): Identifiers → Advertising ID
-  (AdMob kişiselleştirilmiş reklam açıksa).
-- **Data Linked to You**: Contact Info/Name (sosyal profil), User Content
-  (paylaşılan streak), Identifiers (reklam ID).
-- **Data Not Linked to You**: Diagnostics (çökme), Usage Data.
-- Kategoriler: Purchases (IAP — Apple yönetir, sen "linked" seçmezsin),
-  Identifiers, Usage Data, Diagnostics, User Content, Contact Info.
-- Not: AdMob kullanıyorsan `NSUserTrackingUsageDescription` + ATT izni ŞART,
-  aksi halde Advertising ID toplanamaz ve reddedilirsin.
+### Hesap oluşturulduğunda sunucuya (Supabase, AB/Frankfurt) gidenler
+
+| Veri | Tablo | Kimler görebilir |
+|---|---|---|
+| E-posta, kullanıcı adı, arkadaş kodu | `profiles` | Kullanıcı + arkadaşları (yalnızca kullanıcı adı) |
+| Tüm uygulama verisi (yukarıdaki listenin tamamı, JSON) | `app_data` | **Yalnızca kullanıcının kendisi** (RLS) |
+| Arkadaşlık bağlantıları | `friendships` | İlgili iki kullanıcı |
+| Paylaşmayı **seçtiği** streak özetleri | `shared_streaks` | Onaylı arkadaşlar |
+| **Panik (destek) sinyalleri** | `panic_signals` | Onaylı arkadaşlar |
+
+⚠️ `app_data` içinde kriz/tetikleyici kayıtları ve mektup da bulunur — ancak
+**yalnızca kullanıcının kendi hesabında**, RLS ile korunur; arkadaşlar dahil
+kimse göremez.
+
+### Üçüncü taraflara gidenler
+
+| Alıcı | Veri | Amaç |
+|---|---|---|
+| Google AdMob | Reklam kimliği, yaklaşık konum (IP), reklam etkileşimi | Reklam gösterimi/ölçümü |
+| Sentry | Çökme günlüğü, cihaz modeli, OS sürümü | Hata ayıklama |
+| Apple / Google Play | Satın alma jetonu | Abonelik doğrulama |
+
+Kart/ödeme bilgisi uygulamaya **hiç ulaşmaz**; mağazalar yönetir.
 
 ---
 
-## Ortak notlar
-- Gizlilik politikası URL'si her iki formda da gerekli: `kprens.github.io/rutin-legal`
-  — içinde AdMob, Supabase, (varsa) Sentry ve IAP'den bahsettiğinden emin ol.
-- IAP: Ödeme bilgisini uygulama TOPLAMAZ; Apple/Google yönetir. Formda "Financial
-  info" işaretlemene gerek yok (mağaza hallediyor).
-- Çocuklara yönelik değil → "Target audience" 13+/genel seç; aksi halde ek
-  gizlilik yükümlülükleri doğar.
+## 2. Google Play — Veri Güvenliği (verilen cevaplar)
 
-## Öneri
-İlk sürümü **Senaryo A** ile çıkar (en hızlı onay + "veri toplanmıyor" güveni).
-AdMob ve sosyal katmanı stabilize edip bir sonraki güncellemede açarken formu
-**Senaryo B**'ye güncelle.
+Veri toplanıyor mu? → **Evet**
+
+| Veri türü | Toplanır | Paylaşılır | Amaç |
+|---|---|---|---|
+| Ad | Evet | Hayır | Uygulama işlevi |
+| E-posta adresi | Evet | Hayır | Uygulama işlevi (hesap) |
+| Kullanıcı kimliği | Evet | Hayır | Uygulama işlevi |
+| Diğer kullanıcı içeriği (alışkanlık/bırakma/kriz kayıtları) | Evet | Hayır | Uygulama işlevi |
+| Satın alma geçmişi | Evet | Hayır | Uygulama işlevi (Pro) |
+| Cihaz veya diğer kimlikler (reklam ID) | Evet | **Evet** (AdMob) | Reklam |
+| Uygulama performansı / çökme günlükleri | Evet | Hayır | Analiz, hata ayıklama |
+
+- Aktarımda şifreleme: **Evet** (HTTPS)
+- Kullanıcı silme talep edebilir: **Evet** (uygulama içi hesap silme)
+- Reklam Kimliği beyanı: **Evet** — manifest'te `AD_ID` izni var
+  (Google Mobile Ads SDK'sı otomatik ekliyor)
+- Reklam kimliği amacı: yalnızca **Üçüncü Taraf Reklamcılık**
+
+---
+
+## 3. Apple — App Privacy (verilen cevaplar)
+
+**Data Linked to You** — amaç: *App Functionality*
+Name, Email Address, User ID, Purchases, Other User Content,
+Crash Data, Performance Data
+
+**Data Used to Track You** — amaç: *Third-Party Advertising*
+Device ID, Advertising Data
+(ATT izni + `NSUserTrackingUsageDescription` Info.plist'te mevcut)
+
+**Beyan EDİLMEYENLER:** Health & Fitness, Financial Info, Location,
+Contacts, Photos, Audio, Browsing/Search History, Sensitive Info.
+
+### ⚠️ Gözden geçirilmesi gereken nokta
+
+Kriz/tetikleyici kayıtlarının (bağımlılıkla mücadele bağlamı) Apple'ın
+**"Sensitive Info"** tanımına girip girmediği tartışmalıdır. Mevcut beyan
+bunları *Other User Content* kapsamında sayıyor. Gerekçeler:
+
+- Veri cihazda kalır; buluta gitse bile yalnızca kullanıcının kendi
+  hesabında ve RLS ile korunur
+- Reklam veya takip amacıyla **kullanılmaz**, üçüncü tarafla paylaşılmaz
+- Tıbbi/klinik veri değildir; HealthKit'e hiç dokunulmaz
+- Kullanıcının kendi girdiği serbest içeriktir
+
+Panik sinyali arkadaşlarla paylaşıldığı için de bu kategoride kalmalıdır.
+Apple inceleme sırasında soru sorarsa bu gerekçe kullanılabilir. Şüpheye
+düşülürse en güvenli yol beyanı genişletmektir (eksik beyan, fazla
+beyandan çok daha risklidir).
+
+---
+
+## 4. Yeni özellik eklerken kontrol listesi
+
+Cihaz dışına **yeni bir veri** gidiyorsa:
+
+1. `gizlilik-politikasi.md` güncelle ve yayınla
+2. Play Console → Veri Güvenliği formunu güncelle
+3. App Store Connect → App Privacy formunu güncelle
+4. Bu belgeyi güncelle
+5. Yeni bir Supabase tablosuysa **RLS politikalarını yaz** — varsayılan
+   olarak açık gelmez, `enable row level security` açıkça gerekir
+
+---
+
+## 5. Ortak notlar
+
+- Gizlilik politikası URL'si (her iki mağazada zorunlu):
+  `https://kprens.github.io/rutin-legal`
+- IAP: ödeme bilgisi toplanmaz, mağazalar yönetir → "Financial Info"
+  işaretlenmez
+- Hedef kitle 13+ / genel; çocuklara yönelik değil
+- iOS'ta ATT izni olmadan reklam kimliği toplanamaz

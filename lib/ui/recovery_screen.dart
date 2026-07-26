@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../store.dart';
+import 'recovery_timeline_screen.dart';
 import 'rutin_ui.dart';
+import 'trigger_sheet.dart';
 import 'ui_logic.dart';
 
 class RecoveryScreen extends StatelessWidget {
@@ -63,7 +65,7 @@ class RecoveryScreen extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               onTap: () => showRecoverySheet(context),
               child: Text(t('+ Yeni Başlat', '+ Start New'),
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: RC.teal,
                       fontWeight: FontWeight.w600,
                       fontSize: 15)),
@@ -77,7 +79,7 @@ class RecoveryScreen extends StatelessWidget {
             child: Text(
                 t('Henüz kayıt yok. Bırakmak istediğin bir alışkanlık ekle.',
                     'No recoveries yet. Add a habit you want to quit.'),
-                style: const TextStyle(color: RC.muted, height: 1.5)),
+                style: TextStyle(color: RC.muted, height: 1.5)),
           )
         else
           ...s.streaks.map((r) => _recoveryCard(context, s, r)),
@@ -111,17 +113,17 @@ class RecoveryScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(t('Acil Destek', 'Emergency Support'),
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: RC.red,
                             fontSize: 17,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     Text(t('İstek geldiğinde dokun', 'Tap when you feel a craving'),
-                        style: const TextStyle(color: RC.muted, fontSize: 13)),
+                        style: TextStyle(color: RC.muted, fontSize: 13)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: RC.red),
+              Icon(Icons.chevron_right, color: RC.red),
             ],
           ),
         ),
@@ -137,7 +139,7 @@ class RecoveryScreen extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 26, fontWeight: FontWeight.w800, color: color)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: RC.muted, fontSize: 12)),
+            Text(label, style: TextStyle(color: RC.muted, fontSize: 12)),
           ],
         ),
       );
@@ -159,6 +161,12 @@ class RecoveryScreen extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onLongPress: () => _recoveryActions(context, s, r),
+        // Karta dokunmak iyileşme zaman çizelgesini açar (uzun basmak eski
+        // düzenle/sil menüsünü açmaya devam eder).
+        onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => RecoveryTimelineScreen(streak: r))),
         child: RCard(
           child: Column(
             children: [
@@ -178,13 +186,15 @@ class RecoveryScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(r.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontSize: 20, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
                         Text(
                             t('${_fmt(r.start)} tarihinden beri',
                                 'Since ${_fmt(r.start)}'),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: RC.muted, fontSize: 13)),
                       ],
                     ),
@@ -193,12 +203,12 @@ class RecoveryScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text('$days',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 30,
                               fontWeight: FontWeight.w800,
                               color: RC.teal)),
                       Text(t('gün temiz', 'days clean'),
-                          style: const TextStyle(color: RC.muted, fontSize: 12)),
+                          style: TextStyle(color: RC.muted, fontSize: 12)),
                     ],
                   ),
                 ],
@@ -207,29 +217,29 @@ class RecoveryScreen extends StatelessWidget {
               Row(
                 children: [
                   if (r.dailyCost > 0) ...[
-                    _tag('💰', '\$${r.moneySaved.toStringAsFixed(0)}', RC.teal),
+                    _tag(Icons.savings_rounded, '\$${r.moneySaved.toStringAsFixed(0)}', RC.teal),
                     const SizedBox(width: 18),
                   ],
                   if (r.dailyHours > 0) ...[
-                    _tag('⏰', t('${r.hoursSaved.toStringAsFixed(0)}s',
+                    _tag(Icons.access_time_rounded, t('${r.hoursSaved.toStringAsFixed(0)}s',
                         '${r.hoursSaved.toStringAsFixed(0)}h'), RC.purpleBright),
                     const SizedBox(width: 18),
                   ],
                   if (r.relapses > 0)
-                    _tag('📊', t('${r.relapses} nüks', '${r.relapses} relapse'),
+                    _tag(Icons.bar_chart_rounded, t('${r.relapses} nüks', '${r.relapses} relapse'),
                         RC.muted),
                 ],
               ),
               const SizedBox(height: 14),
-              const Divider(color: RC.stroke, height: 1),
+              Divider(color: RC.stroke, height: 1),
               const SizedBox(height: 14),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(t('Sıradaki: ${next.label}', 'Next: ${next.label}'),
-                      style: const TextStyle(color: RC.muted, fontSize: 14)),
+                      style: TextStyle(color: RC.muted, fontSize: 14)),
                   Text(t('$toGo gün kaldı', '$toGo days to go'),
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: RC.teal,
                           fontWeight: FontWeight.w600,
                           fontSize: 14)),
@@ -242,7 +252,7 @@ class RecoveryScreen extends StatelessWidget {
                   value: progress,
                   minHeight: 6,
                   backgroundColor: RC.card2,
-                  valueColor: const AlwaysStoppedAnimation(RC.teal),
+                  valueColor: AlwaysStoppedAnimation(RC.teal),
                 ),
               ),
             ],
@@ -266,27 +276,47 @@ class RecoveryScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 8),
             ListTile(
-              leading: const Text('🆘', style: TextStyle(fontSize: 20)),
+              leading: Icon(Icons.emergency_rounded, size: 20, color: RC.red),
               title: Text(t('İstek geldi — yardım al', 'Craving? Get help'),
-                  style: const TextStyle(color: RC.text)),
+                  style: TextStyle(color: RC.text)),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 openSos(context);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.edit_outlined, color: RC.purpleBright),
+              leading: Icon(Icons.edit_outlined, color: RC.purpleBright),
               title: Text(t('Düzenle', 'Edit'),
-                  style: const TextStyle(color: RC.text)),
+                  style: TextStyle(color: RC.text)),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 showRecoverySheet(context, existing: r);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.refresh, color: RC.amber),
+              leading: Icon(
+                  s.sharedStreakIds.contains(r.id)
+                      ? Icons.people
+                      : Icons.people_outline,
+                  color: RC.teal),
+              title: Text(
+                  s.sharedStreakIds.contains(r.id)
+                      ? t('Paylaşımı Kaldır', 'Stop Sharing')
+                      : t('Arkadaşlarla Paylaş', 'Share with Friends'),
+                  style: TextStyle(color: RC.text)),
+              subtitle: Text(
+                  t('Onaylı arkadaşların bu serini görebilir',
+                      'Accepted friends can see this streak'),
+                  style: TextStyle(color: RC.muted, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                s.toggleSharedStreak(r.id);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.refresh, color: RC.amber),
               title: Text(t('Sıfırla (nüksetme)', 'Reset (relapse)'),
-                  style: const TextStyle(color: RC.text)),
+                  style: TextStyle(color: RC.text)),
               onTap: () async {
                 Navigator.pop(sheetCtx);
                 final ok = await rConfirm(context,
@@ -296,13 +326,21 @@ class RecoveryScreen extends StatelessWidget {
                         '"${r.name}" — your ${r.days}-day streak will reset. Slips happen; what matters is starting again. 💪'),
                     confirmLabel: t('Sıfırla', 'Reset'),
                     danger: true);
-                if (ok) s.resetStreak(r);
+                if (ok) {
+                  s.resetStreak(r);
+                  // Nüks buradan da kaydedilebiliyor — tetikleyici verisi
+                  // yalnızca kriz ekranından toplanırsa desen analizi eksik
+                  // kalırdı (bkz. trigger_sheet.dart).
+                  if (context.mounted) {
+                    await askTrigger(context, streak: r, survived: false);
+                  }
+                }
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: RC.red),
+              leading: Icon(Icons.delete_outline, color: RC.red),
               title: Text(t('Sil', 'Delete'),
-                  style: const TextStyle(color: RC.red)),
+                  style: TextStyle(color: RC.red)),
               onTap: () async {
                 Navigator.pop(sheetCtx);
                 final ok = await rConfirm(context,
@@ -334,9 +372,9 @@ class RecoveryScreen extends StatelessWidget {
     );
   }
 
-  Widget _tag(String emoji, String text, Color color) => Row(
+  Widget _tag(IconData icon, String text, Color color) => Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 15)),
+          Icon(icon, size: 15, color: color),
           const SizedBox(width: 5),
           Text(text,
               style: TextStyle(

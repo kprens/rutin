@@ -15,6 +15,8 @@ class NotificationService {
   static const _waterIdBase = 1000; // su hatırlatıcıları 1000-1099
   static const _calIdBase = 2000; // takvim hatırlatıcıları 2000-2199
   static const _eveningIdBase = 3000; // akşam özeti 3000-3009
+  static const _weeklyIdBase = 4000; // haftalık rapor 4000-4007
+  static const _riskIdBase = 5000; // risk penceresi uyarıları 5000-5013
   static const _wakeStart = 8; // 08:00'den önce bildirim yok
   static const _wakeEnd = 22; // 22:00'den sonra bildirim yok
 
@@ -28,8 +30,26 @@ class NotificationService {
     } catch (_) {
       tz.setLocalLocation(tz.getLocation('Europe/Istanbul'));
     }
+    // ÖNEMLİ: Bildirim küçük ikonu için uygulamanın TAM RENKLİ launcher
+    // ikonunu (@mipmap/ic_launcher) DEĞİL, ayrı bir BEYAZ SİLUET kullanmak
+    // gerekir — Android, API 21+'da bildirim ikonunun sadece alfa kanalını
+    // alıp tek renkli (genelde beyaz) çizer; renkli bir ikon verilirse
+    // sonuç bozuk/eski bir logoya benziyormuş gibi görünebilir. Bu yüzden
+    // assets/icon/icon_fg.png'den üretilmiş beyaz siluet
+    // (android/app/src/main/res/mipmap-*/ic_notification.png) kullanılıyor.
+    // KAYNAK YOLU KRİTİK: flutter_local_notifications, Android tarafında
+    // bildirim ikonunu DRAWABLE olarak çözer
+    // (resources.getIdentifier(name, "drawable", package)). İkon yalnızca
+    // mipmap altında dururken `@mipmap/ic_notification` verilmişti ve
+    // çalışma anında
+    //   PlatformException(invalid_icon, The resource @mipmap/ic_notification
+    //   could not be found...)
+    // fırlatıyordu — üstelik bu istisna load() → applyNotificationSettings
+    // zincirinde uygulamanın AÇILIŞINI engelliyordu (Sentry'de fatal olarak
+    // yakalandı). Artık ikon drawable-* altında ve önek olmadan, sade
+    // kaynak adıyla veriliyor.
     const settings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('ic_notification'),
       iOS: DarwinInitializationSettings(),
     );
     await _plugin.initialize(settings);
@@ -51,12 +71,22 @@ class NotificationService {
           channelDescription: 'Su ve görev hatırlatıcıları',
           importance: Importance.high,
           priority: Priority.high,
+          // Sade kaynak adı — '@mipmap/...' öneki DEĞİL (bkz. init()'teki not).
+          icon: 'ic_notification',
         ),
         iOS: DarwinNotificationDetails(),
       );
 
+  /// Anlık bildirim. Hata durumunda SESSİZCE yutulur: bu, görev tamamlama
+  /// ve su hedefi gibi normal kullanıcı akışlarının ortasından çağrılıyor —
+  /// bir bildirim hatası kullanıcının görevini işaretlemesini engellememeli.
   Future<void> showNow(String title, String body) async {
-    await _plugin.show(DateTime.now().millisecondsSinceEpoch % 100000, title, body, _details);
+    try {
+      await _plugin.show(
+          DateTime.now().millisecondsSinceEpoch % 100000, title, body, _details);
+    } catch (_) {
+      // Bildirim gösterilemedi; uygulama akışı etkilenmez.
+    }
   }
 
   /// Tüm zamanlanmış hatırlatıcıları (su + takvim + akşam özeti) iptal eder.
@@ -70,6 +100,92 @@ class NotificationService {
     }
     for (var i = 0; i < 10; i++) {
       await _plugin.cancel(_eveningIdBase + i);
+    }
+    for (var i = 0; i < 8; i++) {
+      await _plugin.cancel(_weeklyIdBase + i);
+    }
+    for (var i = 0; i < 14; i++) {
+      await _plugin.cancel(_riskIdBase + i);
+    }
+  }
+
+  /// Risk penceresi uyarısı — kullanıcının kişisel deseninden çıkan riskli
+  /// saatten 1 SAAT ÖNCE hatırlatır.
+  ///
+  /// Bu, ürünün en yüksek değerli anıdır: kullanıcı düşmeden ÖNCE müdahale.
+  /// Analiz yalnızca ekranda kalırsa değerinin çoğunu kaybeder — insanlar
+  /// riskli anlarında uygulamayı açmayı akıl edemez, uygulamanın onlara
+  /// gitmesi gerekir.
+  ///
+  /// [weekday] verilmişse (0 = Pazartesi) yalnızca o gün, verilmemişse her
+  /// gün kurulur. Önümüzdeki 14 gün için planlanır; uygulama her açıldığında
+  /// zincir tazelenir.
+  ///
+  /// Ton kritik: uyarı korkutucu değil, hazırlayıcı olmalı. "Düşeceksin"
+  /// değil, "planın ne?" der.
+  Future<void> scheduleRiskWindow({
+    required int hourStart,
+    int? weekday,
+    required String streakName,
+  }) async {
+    for (var i = 0; i < 14; i++) {
+      await _plugin.cancel(_riskIdBase + i);
+    }
+    final now = tz.TZDateTime.now(tz.local);
+    // Riskli saatten 1 saat önce uyar.
+    final alertHour = (hourStart - 1 + 24) % 24;
+    var id = 0;
+
+    for (var offset = 0; offset < 14 && id < 14; offset++) {
+      final day = now.add(Duration(days: offset));
+      if (weekday != null && ((day.weekday - 1) % 7) != weekday) continue;
+      final at =
+          tz.TZDateTime(tz.local, day.year, day.month, day.day, alertHour, 0);
+      if (at.isBefore(now)) continue;
+      await _plugin.zonedSchedule(
+        _riskIdBase + id,
+        t('Yaklaşan bir pencere var', 'A tricky window is coming'),
+        t('Genelde bu saatlerde zorlanıyorsun. Planın ne? "$streakName" için hazırlıklı ol.',
+            'This is usually a hard stretch for you. What\'s your plan for "$streakName"?'),
+        at,
+        _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      id++;
+    }
+  }
+
+  /// Haftalık rapor bildirimi: her PAZAR 10:00.
+  ///
+  /// Bu, aboneliğin en güçlü tutundurma mekanizmasıdır — düzenli, beklenen
+  /// bir teslimat ("pazar sabahı raporum gelir") iptal kararını en çok
+  /// geciktiren şeydir. Önümüzdeki 8 pazar için kurulur; uygulama her
+  /// açıldığında zincir tazelendiği için hiç bitmez.
+  Future<void> scheduleWeeklyReport() async {
+    for (var i = 0; i < 8; i++) {
+      await _plugin.cancel(_weeklyIdBase + i);
+    }
+    final now = tz.TZDateTime.now(tz.local);
+    var id = 0;
+    for (var offset = 0; offset < 56 && id < 8; offset++) {
+      final day = now.add(Duration(days: offset));
+      if (day.weekday != DateTime.sunday) continue;
+      final at = tz.TZDateTime(tz.local, day.year, day.month, day.day, 10, 0);
+      if (at.isBefore(now)) continue;
+      await _plugin.zonedSchedule(
+        _weeklyIdBase + id,
+        t('📊 Haftalık raporun hazır', '📊 Your weekly report is ready'),
+        t('Geçen hafta neler başardığına bak.',
+            'See what you pulled off last week.'),
+        at,
+        _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      id++;
     }
   }
 
@@ -181,16 +297,21 @@ class NotificationService {
       for (final w in weekly.where((w) => w.day == dow && w.time.isNotEmpty)) {
         final at = parseAt(day, w.time);
         if (at != null) {
-          await add(at.subtract(const Duration(minutes: 30)), '📅 ${w.name}',
-              t('30 dakika sonra (${w.time}).', 'In 30 minutes (${w.time}).'));
+          // İki ayrı bildirim: 1 saat önce + tam etkinlik saatinde.
+          await add(at.subtract(const Duration(hours: 1)), '📅 ${w.name}',
+              t('1 saat sonra (${w.time}).', 'In 1 hour (${w.time}).'));
+          await add(at, '📅 ${w.name}',
+              t('Şimdi (${w.time}).', 'Now (${w.time}).'));
         }
       }
       for (final e in events.where((e) => e.date == key)) {
         if (e.time.isNotEmpty) {
           final at = parseAt(day, e.time);
           if (at != null) {
-            await add(at.subtract(const Duration(minutes: 30)), '📌 ${e.name}',
-                t('30 dakika sonra (${e.time}).', 'In 30 minutes (${e.time}).'));
+            await add(at.subtract(const Duration(hours: 1)), '📌 ${e.name}',
+                t('1 saat sonra (${e.time}).', 'In 1 hour (${e.time}).'));
+            await add(at, '📌 ${e.name}',
+                t('Şimdi (${e.time}).', 'Now (${e.time}).'));
           }
         } else {
           await add(

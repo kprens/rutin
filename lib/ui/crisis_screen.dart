@@ -4,10 +4,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../insights.dart';
 import '../l10n.dart';
 import '../models.dart';
 import '../store.dart';
 import 'rutin_ui.dart';
+import 'trigger_sheet.dart';
 
 /// Kriz Modu — "istek geldi" anında kullanıcıyı dalgayı atlatmaya yönlendirir:
 /// ~60 sn nefes egzersizi, ardından kazanımlar özeti. Yeni koyu mor/teal
@@ -73,9 +75,9 @@ class _CrisisScreenState extends State<CrisisScreen>
     return Scaffold(
       backgroundColor: RC.bg,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF15122B), RC.bg],
+            colors: [RC.bgTop, RC.bg],
             begin: Alignment.topCenter,
             end: Alignment.center,
           ),
@@ -99,7 +101,7 @@ class _CrisisScreenState extends State<CrisisScreen>
             child: TextButton(
               onPressed: () => setState(() => _breathing = false),
               child: Text(t('Geç', 'Skip'),
-                  style: const TextStyle(color: RC.muted)),
+                  style: TextStyle(color: RC.muted)),
             ),
           ),
           const Spacer(),
@@ -119,7 +121,7 @@ class _CrisisScreenState extends State<CrisisScreen>
                         height: size,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [RC.purple, RC.teal],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -139,7 +141,7 @@ class _CrisisScreenState extends State<CrisisScreen>
                       _breath.value > 0.5
                           ? t('Nefes ver…', 'Breathe out…')
                           : t('Nefes al…', 'Breathe in…'),
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
                           color: RC.text)),
@@ -152,11 +154,11 @@ class _CrisisScreenState extends State<CrisisScreen>
               t('İstek bir dalgadır, birazdan geçecek.\nSadece nefesine odaklan.',
                   'A craving is a wave — it will pass.\nJust focus on your breath.'),
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 14, color: RC.muted, height: 1.5)),
           const Spacer(),
           Text('$_secondsLeft',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.w800,
                   color: RC.purpleBright)),
@@ -172,28 +174,97 @@ class _CrisisScreenState extends State<CrisisScreen>
     final s = context.read<AppState>();
     final st = widget.streak;
     final quote = _quotes[Random().nextInt(_quotes.length)];
+    // Bir kez hesaplanır (build içinde iki kez çağrılmasın).
+    final encouragement = crisisEncouragement(s.triggerLog);
 
-    return Padding(
+    // ListView (Column + Spacer değil): kullanıcının "Geleceğe Mektup"u
+    // 1000 karaktere kadar olabiliyor; sabit bir Column'da uzun mektup +
+    // kazanım satırları küçük ekranlarda taşıp overflow şeridi çıkarırdı.
+    // Kriz ekranı, hata göstermeye en az tolerans gösterilecek ekrandır.
+    return ListView(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          const Spacer(),
-          const Text('💪', style: TextStyle(fontSize: 48)),
+      children: [
+        Column(
+          children: [
+          const SizedBox(height: 8),
+          Icon(Icons.fitness_center_rounded, size: 48, color: RC.teal),
           const SizedBox(height: 16),
           Text(t('Bak neler başardın', "Look what you've achieved"),
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 22, fontWeight: FontWeight.w800, color: RC.text)),
+
+          // ---- Kişisel kanıt ----
+          // Kullanıcının KENDİ geçmişinden çıkan somut bir cümle (bkz.
+          // insights.dart → crisisEncouragement). Genel bir motivasyon
+          // sözünden çok daha ikna edicidir çünkü itiraz edilemez:
+          // "bunu daha önce 4 kez atlattın". Veri yoksa hiç gösterilmez —
+          // uydurma istatistik göstermektense sessiz kalmak doğrudur.
+          if (encouragement != null) ...[
+            const SizedBox(height: 10),
+            Text(encouragement,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 15,
+                    color: RC.teal,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4)),
+          ],
           const SizedBox(height: 20),
-          _gainRow('🔥', t('${st.days} gün', '${st.days} days'),
+          _gainRow(Icons.local_fire_department_rounded, t('${st.days} gün', '${st.days} days'),
               t('"${st.name}" olmadan geçen süre', 'Time without "${st.name}"')),
           if (st.bestDays > st.days)
-            _gainRow('🏅', t('${st.bestDays} gün', '${st.bestDays} days'),
+            _gainRow(Icons.military_tech_rounded, t('${st.bestDays} gün', '${st.bestDays} days'),
                 t('En uzun serin — ona yeniden ulaşabilirsin',
                     'Your longest streak — you can reach it again')),
           if (st.dailyCost > 0)
-            _gainRow('💰', '₺${st.moneySaved.toStringAsFixed(0)}',
+            _gainRow(Icons.savings_rounded, '₺${st.moneySaved.toStringAsFixed(0)}',
                 t('Cebinde kalan para', 'Money saved')),
           const SizedBox(height: 18),
+
+          // ---- Geleceğe Mektup ----
+          // Kullanıcı kendine bir mektup bıraktıysa, kriz anında gösterilecek
+          // EN GÜÇLÜ şey budur: dışarıdan gelen genel bir motivasyon sözü
+          // değil, kişinin kendi kararı, kendi sözleriyle. Bu yüzden alıntının
+          // ÜSTÜNDE ve daha vurgulu gösterilir.
+          if (st.letter.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: RC.tintPurple,
+                borderRadius: BorderRadius.circular(16),
+                border:
+                    Border.all(color: RC.purple.withValues(alpha: 0.45)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.mark_email_read_rounded,
+                          size: 16, color: RC.purpleBright),
+                      const SizedBox(width: 6),
+                      Text(
+                          t('Kendine yazdıkların', 'What you wrote to yourself'),
+                          style: TextStyle(
+                              color: RC.purpleBright,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text('"${st.letter}"',
+                      style: TextStyle(
+                          fontSize: 15,
+                          color: RC.text,
+                          height: 1.5,
+                          fontStyle: FontStyle.italic)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -203,20 +274,40 @@ class _CrisisScreenState extends State<CrisisScreen>
             ),
             child: Text('"$quote"',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 14,
                     fontStyle: FontStyle.italic,
                     color: RC.muted,
                     height: 1.5)),
           ),
-          const Spacer(),
+          // ---- Panik butonu: arkadaşa haber ver ----
+          // Yalnızca gerçekten arkadaşı olan kullanıcıya gösterilir; kimseye
+          // ulaşmayacak bir buton, krizdeki insanı boşuna umutlandırırdı.
+          if (s.acceptedFriends.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _PanicButton(streakName: st.name),
+          ],
+
+          const SizedBox(height: 24),
           RButton(
             t('Geçti, devam ediyorum 💪', "It passed — I'm good 💪"),
-            gradient: const LinearGradient(colors: [RC.teal, RC.greenDeep]),
+            gradient: LinearGradient(colors: [RC.teal, RC.greenDeep]),
             onTap: () {
+              // Bu ekran kapandıktan SONRA hem bildirim hem tetikleyici
+              // anketi gösterilecek; ikisi de bu State'in context'ini
+              // kullanamaz (pop sonrası dispose edilir). Bu yüzden hem
+              // messenger hem de Navigator'ın KENDİ context'i önceden
+              // yakalanıyor.
+              final messenger = ScaffoldMessenger.of(context);
+              final navContext = Navigator.of(context).context;
               Navigator.pop(context);
-              _toast(t('🎉 Dalgayı atlattın. Serin devam ediyor!',
-                  '🎉 You rode out the wave. Streak intact!'));
+              messenger
+                ..clearSnackBars()
+                ..showSnackBar(SnackBar(
+                    content: Text(t('🎉 Dalgayı atlattın. Serin devam ediyor!',
+                        '🎉 You rode out the wave. Streak intact!'))));
+              // Kriz ANINDA değil, bittikten sonra tek dokunuşluk soru.
+              askTrigger(navContext, streak: st, survived: true);
             },
           ),
           TextButton(
@@ -229,39 +320,48 @@ class _CrisisScreenState extends State<CrisisScreen>
                 confirmLabel: t('Sıfırla', 'Reset'),
               );
               if (ok && context.mounted) {
+                final messenger = ScaffoldMessenger.of(context);
+                final navContext = Navigator.of(context).context;
                 s.resetStreak(st);
                 Navigator.pop(context);
-                _toast(t(
-                    'Sıfırlandı. Düşmek değil, kalkmamak kaybettirir — yeni seri başladı 💪',
-                    "Reset done. Falling isn't losing — staying down is. New streak started 💪"));
+                messenger
+                  ..clearSnackBars()
+                  ..showSnackBar(SnackBar(
+                      content: Text(t(
+                          'Sıfırlandı. Düşmek değil, kalkmamak kaybettirir — yeni seri başladı 💪',
+                          "Reset done. Falling isn't losing — staying down is. New streak started 💪"))));
+                // Nüks sonrası da sorulur — asıl değerli veri budur.
+                // Ton suçlayıcı değil (bkz. trigger_sheet.dart).
+                askTrigger(navContext, streak: st, survived: false);
               }
             },
             child: Text(t('Yine de sıfırla', 'Reset anyway'),
-                style: const TextStyle(color: RC.muted, fontSize: 13)),
+                style: TextStyle(color: RC.muted, fontSize: 13)),
           ),
-        ],
-      ),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _gainRow(String emoji, String big, String small) {
+  Widget _gainRow(IconData icon, String big, String small) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
+          Icon(icon, size: 24, color: RC.purpleBright),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(big,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: RC.purpleBright)),
                 Text(small,
-                    style: const TextStyle(fontSize: 12, color: RC.muted)),
+                    style: TextStyle(fontSize: 12, color: RC.muted)),
               ],
             ),
           ),
@@ -270,9 +370,10 @@ class _CrisisScreenState extends State<CrisisScreen>
     );
   }
 
-  void _toast(String msg) => ScaffoldMessenger.of(context)
-    ..clearSnackBars()
-    ..showSnackBar(SnackBar(content: Text(msg)));
+  // NOT: Eski `_toast` yardımcısı kaldırıldı. Bu ekranın her iki çıkışı da
+  // (atlattım / sıfırla) artık kendi ScaffoldMessenger'ını ÖNCEDEN yakalıyor,
+  // çünkü bildirim ekran kapandıktan sonra gösteriliyor ve o noktada bu
+  // State'in context'i artık geçerli değil.
 
   Future<bool> _confirm(
       {required String title,
@@ -284,24 +385,136 @@ class _CrisisScreenState extends State<CrisisScreen>
         backgroundColor: RC.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(title,
-            style: const TextStyle(color: RC.text, fontSize: 18)),
+            style: TextStyle(color: RC.text, fontSize: 18)),
         content: Text(message,
-            style: const TextStyle(color: RC.muted, height: 1.5)),
+            style: TextStyle(color: RC.muted, height: 1.5)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dCtx, false),
             child: Text(t('Vazgeç', 'Cancel'),
-                style: const TextStyle(color: RC.muted)),
+                style: TextStyle(color: RC.muted)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(dCtx, true),
             child: Text(confirmLabel,
-                style: const TextStyle(
+                style: TextStyle(
                     color: RC.red, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     );
     return r ?? false;
+  }
+}
+
+/// "Arkadaşıma haber ver" butonu.
+///
+/// Yalnız olmadığını hissettirmek, kriz anında en güçlü destektir. Ancak
+/// bu buton ANLIK bildirim göndermez (Rutin'de push altyapısı yok, bkz.
+/// supabase_panic_signals.sql) — arkadaş uygulamayı bir sonraki açışında
+/// görür. Bu, kullanıcıya AÇIKÇA söylenir: krizdeki bir insana
+/// tutulamayacak bir söz vermek, tam da güvenin en kritik olduğu anda
+/// yalan söylemek olurdu.
+class _PanicButton extends StatefulWidget {
+  final String streakName;
+  const _PanicButton({required this.streakName});
+
+  @override
+  State<_PanicButton> createState() => _PanicButtonState();
+}
+
+class _PanicButtonState extends State<_PanicButton> {
+  bool _sending = false;
+  bool _sent = false;
+
+  Future<void> _send() async {
+    setState(() => _sending = true);
+    final ok =
+        await context.read<AppState>().sendPanicSignal(widget.streakName);
+    if (!mounted) return;
+    setState(() {
+      _sending = false;
+      _sent = ok;
+    });
+    if (!ok) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+            content: Text(t('Sinyal gönderilemedi. Bağlantını kontrol et.',
+                'Couldn\'t send. Check your connection.'))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_sent) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: RC.tintGreen,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: RC.green.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_rounded, size: 20, color: RC.green),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                  t('Arkadaşlarına iletildi. Uygulamayı açtıklarında görecekler.',
+                      'Sent to your friends. They\'ll see it next time they open the app.'),
+                  style:
+                      TextStyle(color: RC.text, fontSize: 13, height: 1.4)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _sending ? null : _send,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: RC.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: RC.stroke),
+        ),
+        child: Row(
+          children: [
+            if (_sending)
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: RC.purpleBright),
+              )
+            else
+              Icon(Icons.waving_hand_rounded, size: 20, color: RC.amber),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t('Arkadaşıma haber ver', 'Let a friend know'),
+                      style: TextStyle(
+                          color: RC.text,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(
+                      t('Zorlandığını bilsinler — uygulamayı açtıklarında görecekler',
+                          'Let them know you\'re struggling — they\'ll see it when they open the app'),
+                      style: TextStyle(color: RC.muted, fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

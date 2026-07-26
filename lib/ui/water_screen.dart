@@ -28,10 +28,20 @@ class _WaterScreenState extends State<WaterScreen> {
     final goal = s.water.goal;
     final log = s.todaysWaterLog;
 
-    final liters = cups * cupMl / 1000;
-    final goalL = goal * cupMl / 1000;
-    final ratio = (cups / goal).clamp(0.0, 1.0);
-    final remaining = ((goal - cups) * cupMl).clamp(0, goal * cupMl);
+    // ÖNEMLİ: Litre/kalan miktar HER ZAMAN gerçek loglanan ml toplamından
+    // (s.todaysWaterMl) hesaplanır — yuvarlanmış "bardak" sayısından değil.
+    // Önceki haliyle burada `cups * cupMl` kullanılıyordu; kullanıcı 150ml,
+    // 300ml gibi 250'nin katı olmayan miktarlar eklediğinde (Hızlı Ekle veya
+    // Özel miktar) yuvarlama yüzünden üstteki toplam, alttaki "Bugünün
+    // Kaydı" listesindeki gerçek toplamla ÖRTÜŞMÜYORDU (ör. 450ml log
+    // toplamı varken üstte "0.50L" görünüyordu) — kullanıcıların "matematik
+    // hatası" olarak bildirdiği sorun buydu.
+    final mlTotal = s.todaysWaterMl;
+    final goalMl = goal * cupMl;
+    final liters = mlTotal / 1000;
+    final goalL = goalMl / 1000;
+    final ratio = goalMl == 0 ? 0.0 : (mlTotal / goalMl).clamp(0.0, 1.0);
+    final remaining = (goalMl - mlTotal).clamp(0, goalMl);
     final cupsToGo = (goal - cups).clamp(0, goal);
 
     return Scaffold(
@@ -52,17 +62,17 @@ class _WaterScreenState extends State<WaterScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
                 child: Column(
                   children: [
-                    const Text('💧', style: TextStyle(fontSize: 48)),
+                    Icon(Icons.water_drop_rounded, size: 48, color: RC.blue),
                     const SizedBox(height: 12),
                     Text('${liters.toStringAsFixed(2)}L',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 52,
                             fontWeight: FontWeight.w800,
                             color: RC.blue)),
                     Text(
                         t('${goalL.toStringAsFixed(1)}L günlük hedeften',
                             'of ${goalL.toStringAsFixed(1)}L daily goal'),
-                        style: const TextStyle(color: RC.muted, fontSize: 15)),
+                        style: TextStyle(color: RC.muted, fontSize: 15)),
                     const SizedBox(height: 18),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(99),
@@ -70,16 +80,16 @@ class _WaterScreenState extends State<WaterScreen> {
                         value: ratio,
                         minHeight: 8,
                         backgroundColor: RC.card2,
-                        valueColor: const AlwaysStoppedAnimation(RC.blue),
+                        valueColor: AlwaysStoppedAnimation(RC.blue),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                        cupsToGo == 0
+                        remaining <= 0
                             ? t('Hedef tamam! 🎉', 'Goal reached! 🎉')
                             : t('${remaining}ml kaldı — $cupsToGo bardak',
                                 '${remaining}ml remaining — $cupsToGo cups to go'),
-                        style: const TextStyle(color: RC.muted, fontSize: 14)),
+                        style: TextStyle(color: RC.muted, fontSize: 14)),
                   ],
                 ),
               ),
@@ -91,7 +101,7 @@ class _WaterScreenState extends State<WaterScreen> {
                 child: Row(
                   children: [
                     Text(t('Bugün', 'Today'),
-                        style: const TextStyle(color: RC.muted, fontSize: 14)),
+                        style: TextStyle(color: RC.muted, fontSize: 14)),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Row(
@@ -112,7 +122,7 @@ class _WaterScreenState extends State<WaterScreen> {
                     ),
                     const SizedBox(width: 12),
                     Text('$cups/$goal',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: RC.blue,
                             fontWeight: FontWeight.w700,
                             fontSize: 15)),
@@ -129,7 +139,7 @@ class _WaterScreenState extends State<WaterScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(t('Günlük hedef: $goal bardak',
                         'Daily goal: $goal cups'),
-                        style: const TextStyle(color: RC.muted, fontSize: 13)),
+                        style: TextStyle(color: RC.muted, fontSize: 13)),
                   ),
                   _goalBtn(Icons.add, () => s.changeGoal(1)),
                 ],
@@ -155,21 +165,21 @@ class _WaterScreenState extends State<WaterScreen> {
                     child: TextField(
                       controller: _ctrl,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(color: RC.text),
+                      style: TextStyle(color: RC.text),
                       decoration: InputDecoration(
                         hintText: t('Özel miktar (ml)', 'Custom amount (ml)'),
-                        hintStyle: const TextStyle(color: RC.muted),
+                        hintStyle: TextStyle(color: RC.muted),
                         filled: true,
                         fillColor: RC.card2,
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 18, vertical: 20),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: RC.stroke),
+                          borderSide: BorderSide(color: RC.stroke),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(color: RC.stroke),
+                          borderSide: BorderSide(color: RC.stroke),
                         ),
                       ),
                     ),
@@ -182,8 +192,8 @@ class _WaterScreenState extends State<WaterScreen> {
                       _ctrl.clear();
                     },
                     child: Container(
-                      height: 62,
-                      width: 88,
+                      height: 54,
+                      width: 80,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         gradient: RG.blueBtn,
@@ -213,10 +223,11 @@ class _WaterScreenState extends State<WaterScreen> {
                   border: RC.strokeSoft,
                   child: Text(
                       t('Henüz su eklemedin.', 'No water logged yet.'),
-                      style: const TextStyle(color: RC.muted)),
+                      style: TextStyle(color: RC.muted)),
                 )
               else
                 ...log.map((e) => Padding(
+                      key: ValueKey('${e.time}-${e.ml}-${e.hashCode}'),
                       padding: const EdgeInsets.only(bottom: 10),
                       child: RCard(
                         radius: 16,
@@ -224,21 +235,21 @@ class _WaterScreenState extends State<WaterScreen> {
                             horizontal: 16, vertical: 16),
                         child: Row(
                           children: [
-                            const Text('💧', style: TextStyle(fontSize: 18)),
+                            Icon(Icons.water_drop_rounded, size: 18, color: RC.blue),
                             const SizedBox(width: 12),
                             Text('${e.ml}ml',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: RC.blue,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16)),
                             const Spacer(),
                             Text(e.time,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: RC.muted, fontSize: 14)),
                             const SizedBox(width: 8),
                             GestureDetector(
                               onTap: () => s.removeWaterLog(e),
-                              child: const Icon(Icons.close,
+                              child: Icon(Icons.close,
                                   size: 18, color: RC.muted),
                             ),
                           ],
@@ -270,16 +281,17 @@ class _WaterScreenState extends State<WaterScreen> {
   Widget _quickAdd(AppState s, int ml) => GestureDetector(
         onTap: () => s.addWaterMl(ml),
         child: RCard(
+          key: ValueKey('quickAdd_$ml'),
           color: RC.tintBlue,
           border: RC.blue.withValues(alpha: 0.2),
           radius: 16,
           padding: const EdgeInsets.symmetric(vertical: 20),
           child: Column(
             children: [
-              const Text('💧', style: TextStyle(fontSize: 22)),
+              Icon(Icons.water_drop_rounded, size: 22, color: RC.blue),
               const SizedBox(height: 10),
               Text('${ml}ml',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: RC.blue,
                       fontWeight: FontWeight.w700,
                       fontSize: 16)),
@@ -303,7 +315,7 @@ Widget _appBar(BuildContext context, String title) => Row(
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: RC.stroke),
             ),
-            child: const Icon(Icons.chevron_left, color: RC.text),
+            child: Icon(Icons.chevron_left, color: RC.text),
           ),
         ),
         const SizedBox(width: 14),
