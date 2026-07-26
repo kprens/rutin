@@ -398,6 +398,46 @@ ile F-003'ün tekrarını anında görünür kılar — kullanıcı ödeyip Pro 
 
 ---
 
+## 17. Bekleme sürecinde tamamlananlar (A2 → A1 → A5)
+
+### A2 — CI kuruldu + analyzer tamamen temizlendi
+`.github/workflows/ci.yml`: her push/PR'da analiz + 45 test, ardından debug APK.
+Kapıyı katı tutabilmek (`--fatal-warnings`) için 14 analyzer uyarısı giderildi;
+artık **"No issues found"**. İçlerinde iki gerçek doğruluk düzeltmesi vardı:
+`auth_screen`'de AppState referansı artık await'ten önce yakalanıyor (aksi halde
+`mounted` kontrolü `onSignedIn()`'i tamamen atlatıp bulut verisini yüklemezdi) ve
+`crisis_screen`'de nüks onayında context'ler diyalog açılmadan önce alınıyor.
+
+`dart format` kapısı bilinçli olarak **yok**: zorunlu kılmak ~39 dosyalık mekanik
+bir diff ya da kalıcı bir CI uyarısı gerektirirdi; kalıcı uyarı insanları CI'ı
+görmezden gelmeye alıştırdığı için kontrolün kendisinden zararlıdır.
+
+### A1 — iOS ATT izni
+`Info.plist` metni vardı, kod yoktu → iOS'ta IDFA'ya hiç erişilmiyor, tüm
+reklamlar kişiselleştirilmemiş sunuluyordu. İzin **RootShell'de** isteniyor
+(açılışta değil): sistem diyaloğu kullanıcı başına bir kez gösterir ve ret
+geri alınamaz, o yüzden tek atış kullanıcı uygulamayı gördükten sonra
+harcanmalı. RootShell'e bağlı olması mevcut kullanıcıları da kapsıyor.
+`att_prompt` / `att_status` olaylarıyla ölçülüyor.
+
+> Doğrulanamayan kısım: ATT diyaloğunun gerçekten göründüğü, gerçek bir iOS
+> cihaz/simülatör çalıştırması gerektirir. Kod derleniyor (Android + web
+> derlemeleri doğrulandı), davranış test edilmedi.
+
+### A5 — Sessiz hatalar Sentry'ye
+`lib/diagnostics.dart` eklendi. 60+ `catch (_)` içinden gerçekten arıza gizleyen
+altısı raporlanıyor: `state_save`, `state_load`, `cloud_save`, `cloud_load`,
+`local_cache_save`, `iap_verify`, `account_delete_rpc`. Reklam/analitik/widget
+katmanları bilinçli sessiz kaldı — rutin olarak başarısız olurlar.
+
+Sentry'de `sendDefaultPii` ve `attachScreenshot` açıkça `false`; bu uygulamada
+hata raporuna IP veya ekran görüntüsü iliştirmek hassas veriyi üçüncü tarafa
+taşımak demek.
+
+**Test: 15 → 45.**
+
+---
+
 ## Not: Dağıtım gerektiren değişiklikler
 
 1. **Edge Function** — yayına alınmadan ömür boyu düzeltmesi (F-003) etkin olmaz:
