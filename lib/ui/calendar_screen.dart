@@ -200,12 +200,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
             style: RText.title),
         const SizedBox(height: 12),
         if (events.isEmpty && weekly.isEmpty)
-          RCard(
-            border: RC.strokeSoft,
-            child: Text(
-                t('Bu gün için program yok. Aşağıdan ekle 👇',
-                    'Nothing scheduled. Add below 👇'),
-                style: TextStyle(color: RC.muted, height: 1.5)),
+          REmpty(
+            icon: Icons.schedule_rounded,
+            title: t('Bu gün için program yok', 'Nothing scheduled'),
+            message: t('Aşağıdaki bölümden bu güne bir program ekleyebilirsin.',
+                'Use the section below to schedule something for this day.'),
           )
         else ...[
           ...events.map((e) => _scheduleRow(e.time, e.name, false, () {

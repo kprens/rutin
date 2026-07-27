@@ -118,12 +118,12 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
 
               // ---- Badge grid ----
               if (shown.isEmpty)
-                RCard(
-                  border: RC.strokeSoft,
-                  child: Text(
-                      t('Bu kategoride rozet yok.',
-                          'No badges in this category.'),
-                      style: TextStyle(color: RC.muted)),
+                REmpty(
+                  icon: Icons.military_tech_outlined,
+                  title: t('Bu kategoride rozet yok',
+                      'No badges in this category'),
+                  message: t('Diğer kategorilere göz at ya da kullanmaya devam et — rozetler kendiliğinden açılır.',
+                      'Check the other categories, or keep going — badges unlock on their own.'),
                 )
               else
                 GridView.count(

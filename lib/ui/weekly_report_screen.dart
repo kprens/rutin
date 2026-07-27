@@ -68,12 +68,12 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
               const SizedBox(height: 18),
 
               if (!r.hasData)
-                RCard(
-                  border: RC.strokeSoft,
-                  child: Text(
-                      t('Bu hafta için yeterli veri yok. Birkaç gün kullandıktan sonra raporun anlam kazanacak.',
-                          'Not enough data for this week yet. Your report gets meaningful after a few days of use.'),
-                      style: TextStyle(color: RC.muted, height: 1.4)),
+                REmpty(
+                  icon: Icons.insights_outlined,
+                  title: t('Bu hafta için yeterli veri yok',
+                      'Not enough data this week'),
+                  message: t('Birkaç gün kullandıktan sonra raporun anlam kazanacak.',
+                      'Your report gets meaningful after a few days of use.'),
                 )
               else ...[
                 // ---- Manşet (her zaman görünür) ----
