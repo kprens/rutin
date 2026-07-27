@@ -163,6 +163,23 @@ void main() {
     });
   });
 
+  // Makbuz doğrulama adresi yapılandırılmadıysa bu, AĞ hatası gibi
+  // görünmemeli: kullanıcı ödemiş ve Pro açılmamış olur.
+  group('Makbuz doğrulama adresi yapılandırması', () {
+    tearDown(() => Iap.verifyReceiptUrl = Iap.unconfiguredVerifyUrl);
+
+    test('atanmamış varsayılan adres "yapılandırılmadı" sayılır', () {
+      Iap.verifyReceiptUrl = Iap.unconfiguredVerifyUrl;
+      expect(Iap.verifyUrlConfigured, isFalse);
+    });
+
+    test('gerçek adres atanınca yapılandırılmış sayılır', () {
+      Iap.verifyReceiptUrl =
+          'https://pfgljdvkmkqvlvdljvjk.supabase.co/functions/v1/verify-receipt';
+      expect(Iap.verifyUrlConfigured, isTrue);
+    });
+  });
+
   // Okuma amaçlı getter'lar kalıcı state'i DEĞİŞTİRMEMELİ.
   //
   // `todaysDone` ve `todaysWaterLog` eskiden `putIfAbsent` ile bugünün

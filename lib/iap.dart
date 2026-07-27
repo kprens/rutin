@@ -71,11 +71,28 @@ class Iap extends ChangeNotifier {
   static String kindOf(String productId) =>
       productId == lifetimeId ? 'lifetime' : 'subscription';
 
-  /// TODO: Kendi Supabase projenizin Edge Function URL'i ile değiştirin.
-  /// Fonksiyon; { source, productId, receipt } alıp App Store / Play
-  /// sunucularına karşı doğrulama yapmalı ve { "valid": true|false } dönmeli.
-  static String verifyReceiptUrl =
+  /// Yapılandırılmamış durumu temsil eden varsayılan (sahte) adres.
+  ///
+  /// Gerçek değer `main.dart` içinde SUPABASE_URL'den türetilir. Supabase
+  /// yapılandırması başarısız olursa (geçersiz URL, initialize hatası) bu
+  /// değer OLDUĞU GİBİ kalır — bu yüzden ayrı bir sabit olarak tutuluyor ki
+  /// "yapılandırıldı mı" sorusu güvenilir biçimde cevaplanabilsin.
+  static const String unconfiguredVerifyUrl =
       'https://YOUR-PROJECT.supabase.co/functions/v1/verify-receipt';
+
+  /// Makbuz doğrulama uç noktası.
+  ///
+  /// `main.dart` bunu `$SUPABASE_URL/functions/v1/verify-receipt` olarak
+  /// atar. Fonksiyon; { source, productId, receipt, kind } alıp App Store /
+  /// Play sunucularına karşı doğrulama yapar ve { "valid": true|false } döner.
+  static String verifyReceiptUrl = unconfiguredVerifyUrl;
+
+  /// Doğrulama adresi gerçekten yapılandırıldı mı.
+  ///
+  /// `false` iken satın alma doğrulanamaz; ağ hatası gibi görünen ama
+  /// aslında YAPILANDIRMA hatası olan sessiz bir gelir kaybı doğar.
+  static bool get verifyUrlConfigured =>
+      verifyReceiptUrl != unconfiguredVerifyUrl;
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _sub;
@@ -273,12 +290,18 @@ class Iap extends ChangeNotifier {
         if (p.pendingCompletePurchase) {
           try {
             await _iap.completePurchase(p);
-          } catch (e) {
+          } catch (e, st) {
             // Bildirim başarısız oldu; işlem kuyrukta kalabilir ve
             // purchaseStream'den tekrar düşer, bir sonraki denemede
             // yeniden completePurchase çağrılır. Kullanıcıya ekstra bir
-            // hata göstermeye gerek yok, sadece logla.
-            debugPrint('IAP completePurchase hatası: $e');
+            // hata göstermeye gerek yok.
+            //
+            // Ama sessiz de kalmamalı: completePurchase KALICI olarak
+            // başarısız olursa işlem kuyruktan hiç düşmez ve mağaza aynı
+            // satın almayı tekrar tekrar sunar. `debugPrint` release'te
+            // hiçbir yere ulaşmadığı için bu, sahada görünmez bir arıza
+            // olurdu.
+            reportError(e, st, op: 'iap_complete_purchase');
           }
         }
       }
@@ -295,6 +318,23 @@ class Iap extends ChangeNotifier {
   }
 
   Future<bool> _defaultVerify(PurchaseDetails p) async {
+    // Yapılandırma hatasını AĞ hatasından ayır.
+    //
+    // URL atanmamışsa istek sahte bir alan adına gider, DNS hatasıyla
+    // düşer ve kullanıcı "sunucuya ulaşılamadı" görür — oysa sorun ağ
+    // değil, yapılandırmadır. Kullanıcı ÖDEMİŞ ve Pro açılmamıştır; bu
+    // ayrım yapılmazsa hata aylarca ağ sorunu sanılıp gözden kaçar.
+    if (!verifyUrlConfigured) {
+      lastError = 'Satın alma doğrulaması yapılandırılmadı. '
+          'Ödemen alındıysa "Satın Alımları Geri Yükle" ile geri kazanabilirsin.';
+      reportError(
+        StateError('verifyReceiptUrl yapılandırılmadı (Supabase kurulmamış)'),
+        StackTrace.current,
+        op: 'iap_verify_unconfigured',
+        tags: {'productId': p.productID},
+      );
+      return false;
+    }
     try {
       final res = await http
           .post(
