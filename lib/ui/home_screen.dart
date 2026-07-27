@@ -6,6 +6,7 @@ import '../l10n.dart';
 import '../models.dart';
 import '../quotes.dart';
 import '../store.dart';
+import 'home_logic.dart';
 import 'recovery_timeline_screen.dart';
 import 'rutin_ui.dart';
 import 'ui_logic.dart';
@@ -21,17 +22,12 @@ class HomeScreen extends StatelessWidget {
     final todays = s.todaysTasks;
     final total = todays.length;
     final done = s.doneCount;
-    final pct = total == 0 ? 0.0 : done / total;
+    final pct = progressRatio(done, total);
 
     final name = s.userName.isNotEmpty
         ? s.userName.split(' ').first
         : t('Dostum', 'Friend');
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? t('Günaydın,', 'Good morning,')
-        : hour < 18
-            ? t('İyi günler,', 'Good afternoon,')
-            : t('İyi akşamlar,', 'Good evening,');
+    final greeting = greetingFor(DateTime.now().hour);
     final dateStr = DateFormat('EEEE, MMMM d', T.locale).format(DateTime.now());
 
     // Gerçek loglanan ml toplamından — yuvarlanmış bardak sayısından DEĞİL
@@ -40,8 +36,7 @@ class HomeScreen extends StatelessWidget {
     final liters = s.todaysWaterMl / 1000;
     final goalL = s.water.goal * 0.25;
     final bestStreak = s.maxHabitStreak;
-    final cleanDays =
-        s.streaks.fold<int>(0, (m, st) => st.days > m ? st.days : m);
+    final cleanDays = longestCleanStreak(s.streaks);
     final dailyQuote = quoteOfTheDay();
     // Sık kaçırılan alışkanlık için "hedefi küçültelim mi?" önerisi
     // (bkz. _adaptiveCard). Bir kez hesaplanır.
@@ -146,8 +141,8 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                        t('${total - done} alışkanlık kaldı',
-                            '${total - done} habits remaining'),
+                        t('${habitsRemaining(done, total)} alışkanlık kaldı',
+                            '${habitsRemaining(done, total)} habits remaining'),
                         style: TextStyle(color: RC.muted, fontSize: 13)),
                   ],
                 ),
@@ -183,8 +178,14 @@ class HomeScreen extends StatelessWidget {
             () => showHabitSheet(context)),
         const SizedBox(height: 12),
         if (todays.isEmpty)
-          _empty(t('Bugün için alışkanlık yok. Yukarıdan ekle 👆',
-              'No habits for today. Add one above 👆'))
+          REmpty(
+            icon: Icons.checklist_rounded,
+            title: t('Bugün için alışkanlık yok', 'No habits for today'),
+            message: t('İlk alışkanlığını ekle; günlük ilerlemen burada görünecek.',
+                'Add your first habit — your daily progress will show up here.'),
+            actionLabel: t('Alışkanlık Ekle', 'Add Habit'),
+            onAction: () => showHabitSheet(context),
+          )
         else
           ...todays.map((task) => _habitRow(context, s, task)),
 
@@ -210,8 +211,14 @@ class HomeScreen extends StatelessWidget {
             t('+ Ekle', '+ Add'), RC.teal, () => showRecoverySheet(context)),
         const SizedBox(height: 12),
         if (s.streaks.isEmpty)
-          _empty(t('Bırakmak istediğin bir şey için kayıt ekle.',
-              'Add a recovery for something you want to quit.'))
+          REmpty(
+            icon: Icons.spa_rounded,
+            title: t('Henüz bırakma kaydın yok', 'No recoveries yet'),
+            message: t('Bırakmak istediğin bir şeyi ekle; temiz günlerini buradan takip et.',
+                "Add something you want to quit — track your clean days here."),
+            actionLabel: t('Kayıt Ekle', 'Add Recovery'),
+            onAction: () => showRecoverySheet(context),
+          )
         else
           Row(
             children: [
@@ -298,13 +305,6 @@ class HomeScreen extends StatelessWidget {
                     fontSize: 15)),
           ),
         ],
-      );
-
-  Widget _empty(String msg) => RCard(
-        color: RC.card,
-        border: RC.strokeSoft,
-        child: Text(msg,
-            style: TextStyle(color: RC.muted, height: 1.5)),
       );
 
   Widget _habitRow(BuildContext context, AppState s, TaskItem task) {
