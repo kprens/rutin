@@ -1,0 +1,93 @@
+# Rutin — sürekli entegrasyon.
+#
+# NEDEN VAR: Bu projede testler (38 adet) kritik davranışları koruyor —
+# veri kaybı zinciri, IAP ürün tipi ayrımı, analitikteki PII filtresi.
+# Ama hiçbir otomasyon onları çalıştırmıyordu; yani bir regresyon ancak
+# birisi elle `flutter test` yazarsa fark edilirdi. Bu iş akışı, testleri
+# her push ve her PR'da zorunlu hale getirir.
+#
+# Public repo olduğu için GitHub Actions dakikaları ücretsizdir.
+
+name: CI
+
+on:
+  push:
+    branches: [main, theme-update]
+  pull_request:
+  # Elle de tetiklenebilsin.
+  workflow_dispatch:
+
+# Aynı dal için üst üste push yapıldığında eski koşuyu iptal et —
+# gereksiz dakika harcamasın.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Geliştirme makinesindeki sürümle AYNI olmalı; aksi halde CI'da geçen bir
+  # şey yerelde patlayabilir (ya da tersi). Flutter yükseltilirken burası da
+  # güncellenmeli.
+  FLUTTER_VERSION: 3.44.5
+
+jobs:
+  analyze-and-test:
+    name: Analiz + Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      # NOT: `dart format` kontrolü bilinçli olarak YOK. Kod tabanının bir
+      # kısmı `dart format` çıktısıyla birebir aynı değil; bunu zorunlu kılmak
+      # ya ~39 dosyalık mekanik bir diff gerektirir ya da CI'da kalıcı bir
+      # uyarı bırakır. Kalıcı uyarı, insanları CI'ı görmezden gelmeye
+      # alıştırdığı için kontrolün kendisinden daha zararlıdır. Biçimlendirme
+      # yapılmak istenirse: `dart format lib test` + ayrı bir commit.
+
+      - name: Statik analiz
+        # Analyzer ŞU AN TAMAMEN TEMİZ (0 hata, 0 uyarı, 0 info). Bu yüzden
+        # kapı katı tutulabiliyor: yeni bir uyarı eklenirse build kırılır.
+        run: flutter analyze --no-pub --fatal-warnings
+
+      - name: Testler
+        run: flutter test --no-pub --reporter expanded
+
+  build-android:
+    name: Android derleme
+    runs-on: ubuntu-latest
+    # Test geçmeden derlemeye girip dakika harcama.
+    needs: analyze-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      # ÖNEMLİ: Burada RELEASE derlemesi yapılmaz.
+      #
+      # Release derlemesi imza anahtarı (key.properties + .jks) ve
+      # --dart-define ile verilen üretim değerleri (Supabase, AdMob, Sentry)
+      # gerektirir. Bunların hiçbiri repoda YOKTUR ve olmamalıdır. Buradaki
+      # amaç "mağazaya çıkacak paketi üretmek" değil, "kod gerçekten
+      # derleniyor mu" sorusunu her değişiklikte yanıtlamaktır.
+      - name: Debug APK derle
+        run: flutter build apk --debug

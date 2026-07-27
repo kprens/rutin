@@ -1,4 +1,6 @@
-/// Tema sistemi — 8 tema (2 ücretsiz, 6 Pro), her biri açık + koyu paletli.
+/// Tema sistemi — 9 tema (2 ücretsiz, 7 Pro), her biri açık + koyu paletli.
+/// Yeni Rutin tasarım diline göre yeniden renklendirildi: soğuk, derin
+/// near-black koyu modlar ve canlı, doygun vurgu renkleri.
 /// Sistem temasına (açık/koyu) otomatik uyar.
 library;
 
@@ -28,22 +30,28 @@ class RutinColors {
           : currentTheme.light;
 }
 
-/// Açık palet üretici — nötr sıcak tonlar sabit, kimlik renkleri temaya göre.
+/// Açık palet üretici — nötr soğuk tonlar sabit, kimlik renkleri temaya göre.
 RutinColors _l(Color accent, Color accent2, Color amber, Color blue,
         Color bg, Color card, Color card2) =>
     RutinColors(
       bg: bg,
       card: card,
       card2: card2,
-      text: const Color(0xFF33302A),
-      muted: const Color(0xFF989083),
+      text: const Color(0xFF1C1C22),
+      // ERİŞİLEBİLİRLİK: eskiden 0xFF8C8B98 idi ve açık temaların HEPSİNDE
+      // WCAG AA'nın altında kalıyordu (ölçülen 3.00–3.35:1, gereken 4.5:1).
+      // Bu renk uygulamada 120'den fazla yerde metin rengi olarak kullanılıyor,
+      // yani sorun kozmetik değil: düşük görme keskinliğinde ya da güneş
+      // altında bu metinlerin çoğu okunmuyordu. Ton korunarak koyulaştırıldı;
+      // yeni ölçüm 4.56–5.10:1 (beyaz kart dahil en zorlu üç yüzeyde).
+      muted: const Color(0xFF6E6D77),
       accent: accent,
       accent2: accent2,
-      green: const Color(0xFF5A9E6F),
-      red: const Color(0xFFD95550),
+      green: const Color(0xFF29B673),
+      red: const Color(0xFFE85A54),
       blue: blue,
       amber: amber,
-      cardBorder: const Color(0x1F8A7660),
+      cardBorder: const Color(0x14000000),
     );
 
 /// Koyu palet üretici.
@@ -53,15 +61,15 @@ RutinColors _d(Color accent, Color accent2, Color amber, Color blue,
       bg: bg,
       card: card,
       card2: card2,
-      text: const Color(0xFFF0EAE2),
-      muted: const Color(0xFFA79C8E),
+      text: const Color(0xFFF2F1F5),
+      muted: const Color(0xFF9C9BAA),
       accent: accent,
       accent2: accent2,
-      green: const Color(0xFF6FB585),
-      red: const Color(0xFFE06B66),
+      green: const Color(0xFF45C98A),
+      red: const Color(0xFFF16B65),
       blue: blue,
       amber: amber,
-      cardBorder: const Color(0x26E0D4C0),
+      cardBorder: const Color(0x22FFFFFF),
     );
 
 class ThemeSpec {
@@ -83,89 +91,120 @@ class ThemeSpec {
 }
 
 final List<ThemeSpec> themes = [
+  // Beyaz önce listelenir — uygulamanın varsayılan (ücretsiz) teması budur.
+  // Turuncu Alev hakkında olumsuz kullanıcı yorumları üzerine önce Okyanus'a,
+  // sonra kullanıcı isteğiyle temiz/minimal bu beyaz temaya çevrildi (bkz.
+  // store.dart themeId varsayılanları). Diğerleri hâlâ ücretsiz/pro seçenek
+  // olarak listede duruyor, sadece artık ilk/varsayılan değil.
   ThemeSpec(
-    id: 'alev',
-    name: 'Turuncu Alev',
-    emoji: '🔥',
+    id: 'beyaz',
+    name: 'Beyaz',
+    emoji: '⚪',
     pro: false,
-    light: _l(const Color(0xFFE07A4F), const Color(0xFFC96442), const Color(0xFFD99A3D),
-        const Color(0xFF4F9BC4), const Color(0xFFFAF3EA), const Color(0xFFFFFDF9), const Color(0xFFF3E7D8)),
-    dark: _d(const Color(0xFFE07A4F), const Color(0xFFE8916B), const Color(0xFFE0A855),
-        const Color(0xFF6FB0D4), const Color(0xFF1E1713), const Color(0xFF2A211B), const Color(0xFF3A2E25)),
+    light: _l(const Color(0xFF4A6CF7), const Color(0xFF3552C8), const Color(0xFFF5A623),
+        const Color(0xFF4A6CF7), const Color(0xFFFAFAFB), const Color(0xFFFFFFFF), const Color(0xFFF1F2F5)),
+    dark: _d(const Color(0xFF6C8CFF), const Color(0xFF90A8FF), const Color(0xFFFFC266),
+        const Color(0xFF6C8CFF), const Color(0xFF0F1115), const Color(0xFF17191F), const Color(0xFF1E2129)),
   ),
   ThemeSpec(
     id: 'okyanus',
     name: 'Okyanus',
     emoji: '🌊',
     pro: false,
-    light: _l(const Color(0xFF3E8FB8), const Color(0xFF2F7093), const Color(0xFF52B8A8),
-        const Color(0xFF3E8FB8), const Color(0xFFEDF4F6), const Color(0xFFFBFDFE), const Color(0xFFDEEBEF)),
-    dark: _d(const Color(0xFF54A5CC), const Color(0xFF7BBCDB), const Color(0xFF63C7B7),
-        const Color(0xFF54A5CC), const Color(0xFF121A1F), const Color(0xFF1C272E), const Color(0xFF28363F)),
+    light: _l(const Color(0xFF2E9CE0), const Color(0xFF2380BE), const Color(0xFF3FB6A6),
+        const Color(0xFF2E9CE0), const Color(0xFFF5FAFC), const Color(0xFFFFFFFF), const Color(0xFFE1F0F6)),
+    dark: _d(const Color(0xFF4FB4EE), const Color(0xFF7CC8F2), const Color(0xFF5FD0C0),
+        const Color(0xFF4FB4EE), const Color(0xFF070E12), const Color(0xFF101B21), const Color(0xFF17262E)),
+  ),
+  ThemeSpec(
+    id: 'alev',
+    name: 'Turuncu Alev',
+    emoji: '🔥',
+    pro: false,
+    light: _l(const Color(0xFFFF7A45), const Color(0xFFE85A2A), const Color(0xFFFFB238),
+        const Color(0xFF4FA8E8), const Color(0xFFFAF8F6), const Color(0xFFFFFFFF), const Color(0xFFF1E9E2)),
+    dark: _d(const Color(0xFFFF8F5E), const Color(0xFFFFAB7A), const Color(0xFFFFC266),
+        const Color(0xFF6FBBEF), const Color(0xFF120E0B), const Color(0xFF1C1512), const Color(0xFF29201A)),
   ),
   ThemeSpec(
     id: 'orman',
     name: 'Orman',
     emoji: '🌿',
     pro: true,
-    light: _l(const Color(0xFF4E9459), const Color(0xFF3B7A46), const Color(0xFFA8B84D),
-        const Color(0xFF4F9BC4), const Color(0xFFEFF4EC), const Color(0xFFFCFEFB), const Color(0xFFE0EAD9)),
-    dark: _d(const Color(0xFF66AB70), const Color(0xFF8AC292), const Color(0xFFB9C86A),
-        const Color(0xFF6FB0D4), const Color(0xFF141A14), const Color(0xFF1F281F), const Color(0xFF2B382B)),
+    light: _l(const Color(0xFF3FAE55), const Color(0xFF2E8C42), const Color(0xFFB7C24A),
+        const Color(0xFF4FA8E8), const Color(0xFFF4F9F2), const Color(0xFFFFFFFF), const Color(0xFFE1EEDC)),
+    dark: _d(const Color(0xFF5CC773), const Color(0xFF82D797), const Color(0xFFC7D766),
+        const Color(0xFF6FBBEF), const Color(0xFF0A0F0A), const Color(0xFF131C13), const Color(0xFF1C2A1C)),
   ),
   ThemeSpec(
     id: 'gul',
     name: 'Gül Kurusu',
     emoji: '🌸',
     pro: true,
-    light: _l(const Color(0xFFC96A7E), const Color(0xFFAD4E63), const Color(0xFFD9985D),
-        const Color(0xFF4F9BC4), const Color(0xFFF9F0F1), const Color(0xFFFFFBFC), const Color(0xFFF0DEE1)),
-    dark: _d(const Color(0xFFD8879A), const Color(0xFFE5A5B4), const Color(0xFFE0A855),
-        const Color(0xFF6FB0D4), const Color(0xFF1E1417), const Color(0xFF2A1E22), const Color(0xFF3A2B30)),
+    light: _l(const Color(0xFFE0567A), const Color(0xFFC43E63), const Color(0xFFE0A15D),
+        const Color(0xFF4FA8E8), const Color(0xFFFCF3F5), const Color(0xFFFFFFFF), const Color(0xFFF3DFE4)),
+    dark: _d(const Color(0xFFEE7A98), const Color(0xFFF6A0B6), const Color(0xFFEFBB80),
+        const Color(0xFF6FBBEF), const Color(0xFF130A0D), const Color(0xFF1E1216), const Color(0xFF2C1A20)),
   ),
   ThemeSpec(
     id: 'lavanta',
     name: 'Lavanta',
     emoji: '💜',
     pro: true,
-    light: _l(const Color(0xFF8A6FC0), const Color(0xFF6F54A6), const Color(0xFFC08ABB),
-        const Color(0xFF4F9BC4), const Color(0xFFF2F0F8), const Color(0xFFFCFBFE), const Color(0xFFE5E0F0)),
-    dark: _d(const Color(0xFFA089D1), const Color(0xFFBBA9E0), const Color(0xFFD0A0CB),
-        const Color(0xFF6FB0D4), const Color(0xFF171420), const Color(0xFF221E2E), const Color(0xFF2F2A3E)),
+    light: _l(const Color(0xFF8F6BE8), const Color(0xFF7250C8), const Color(0xFFC98FC4),
+        const Color(0xFF4FA8E8), const Color(0xFFF6F4FC), const Color(0xFFFFFFFF), const Color(0xFFE7E1F5)),
+    dark: _d(const Color(0xFFA98CF0), const Color(0xFFC3ADF5), const Color(0xFFDBA8D6),
+        const Color(0xFF6FBBEF), const Color(0xFF0D0A17), const Color(0xFF171224), const Color(0xFF221A33)),
   ),
   ThemeSpec(
     id: 'gece',
     name: 'Gece Yarısı',
     emoji: '🌌',
     pro: true,
-    light: _l(const Color(0xFF4A5FA8), const Color(0xFF39498A), const Color(0xFF7A8FD0),
-        const Color(0xFF4F9BC4), const Color(0xFFEEF0F6), const Color(0xFFFBFCFE), const Color(0xFFDFE3EF)),
-    dark: _d(const Color(0xFF6B82D0), const Color(0xFF8FA2E0), const Color(0xFF9BAEE8),
-        const Color(0xFF6FB0D4), const Color(0xFF0F1220), const Color(0xFF181C30), const Color(0xFF232946)),
+    light: _l(const Color(0xFF5A6BF0), const Color(0xFF4353D4), const Color(0xFF8B9AF0),
+        const Color(0xFF4FA8E8), const Color(0xFFF3F4FA), const Color(0xFFFFFFFF), const Color(0xFFE2E5F3)),
+    dark: _d(const Color(0xFF7C8AF5), const Color(0xFF9CA8F7), const Color(0xFFAAB6F5),
+        const Color(0xFF6FBBEF), const Color(0xFF0A0B14), const Color(0xFF131526), const Color(0xFF1C2038)),
   ),
   ThemeSpec(
     id: 'retro',
     name: 'Retro',
     emoji: '📼',
     pro: true,
-    light: _l(const Color(0xFFC2842B), const Color(0xFFA36B1B), const Color(0xFF4E9489),
-        const Color(0xFF4E9489), const Color(0xFFF7F1E3), const Color(0xFFFEFBF3), const Color(0xFFEBE1C9)),
-    dark: _d(const Color(0xFFD49B42), const Color(0xFFE2B56A), const Color(0xFF63AC9F),
-        const Color(0xFF63AC9F), const Color(0xFF1B1710), const Color(0xFF272218), const Color(0xFF352E20)),
+    light: _l(const Color(0xFFD68C2E), const Color(0xFFB5721E), const Color(0xFF5AA89B),
+        const Color(0xFF5AA89B), const Color(0xFFF9F5EC), const Color(0xFFFFFFFF), const Color(0xFFEEE3C9)),
+    dark: _d(const Color(0xFFE8A44E), const Color(0xFFF2BE79), const Color(0xFF75C2B4),
+        const Color(0xFF75C2B4), const Color(0xFF110D08), const Color(0xFF1C1610), const Color(0xFF2A2216)),
   ),
   ThemeSpec(
     id: 'kumsal',
     name: 'Kumsal',
     emoji: '🏖️',
     pro: true,
-    light: _l(const Color(0xFFD9975B), const Color(0xFFBD7C40), const Color(0xFF56BBB0),
-        const Color(0xFF56BBB0), const Color(0xFFFAF5EC), const Color(0xFFFFFDF8), const Color(0xFFF1E7D5)),
-    dark: _d(const Color(0xFFE3A96C), const Color(0xFFEFC08D), const Color(0xFF68CCC0),
-        const Color(0xFF68CCC0), const Color(0xFF1C1812), const Color(0xFF28231A), const Color(0xFF373023)),
+    light: _l(const Color(0xFFE0A15D), const Color(0xFFC6853E), const Color(0xFF5FC2B5),
+        const Color(0xFF5FC2B5), const Color(0xFFFBF7EF), const Color(0xFFFFFFFF), const Color(0xFFF0E5CF)),
+    dark: _d(const Color(0xFFEFBB80), const Color(0xFFF6D1A3), const Color(0xFF7ED8CB),
+        const Color(0xFF7ED8CB), const Color(0xFF120E09), const Color(0xFF1D1710), const Color(0xFF2B2216)),
+  ),
+  ThemeSpec(
+    id: 'grafit',
+    name: 'Grafit',
+    emoji: '⚫',
+    pro: true,
+    light: _l(const Color(0xFF3A3A42), const Color(0xFF6B6B76), const Color(0xFFFF8A4C),
+        const Color(0xFF5C87A8), const Color(0xFFF7F7F8), const Color(0xFFFFFFFF), const Color(0xFFECECEF)),
+    dark: _d(const Color(0xFFD4D4DC), const Color(0xFFA8A8B4), const Color(0xFFFF8A4C),
+        const Color(0xFF7FA8C9), const Color(0xFF08080A), const Color(0xFF111114), const Color(0xFF1A1A1F)),
   ),
 ];
 
 ThemeSpec currentTheme = themes.first;
+
+/// Kullanıcının Ayarlar'daki "Koyu Mod" tercihi. AppState.setDarkMode()
+/// tarafından güncellenir ve MaterialApp'ın themeMode'u ile senkron tutulur.
+/// "Yeni arayüz" (RC, rutin_ui.dart) context'e erişemediği için hangi
+/// paleti (currentTheme.dark / currentTheme.light) kullanacağını buradan okur.
+bool useDarkPalette = true;
 
 ThemeSpec themeById(String id) =>
     themes.firstWhere((t) => t.id == id, orElse: () => themes.first);
@@ -173,6 +212,11 @@ ThemeSpec themeById(String id) =>
 ThemeData _rutinTheme(RutinColors c, Brightness b) {
   final base = ThemeData(
     useMaterial3: true,
+    // Poppins — assets/fonts/ altına .ttf dosyaları + pubspec.yaml'daki
+    // `fonts:` bloğu eklenince otomatik devreye girer (bkz.
+    // assets/fonts/README.md). Şimdilik font kayıtlı değilse Flutter
+    // sessizce platform varsayılan fontuna düşer.
+    fontFamily: 'Poppins',
     colorScheme: ColorScheme.fromSeed(
       seedColor: c.accent,
       brightness: b,

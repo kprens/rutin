@@ -128,7 +128,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     .map((w) => Expanded(
                           child: Center(
                             child: Text(w.toUpperCase(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: RC.faint,
                                     fontWeight: FontWeight.w600)),
                           ),
@@ -145,7 +145,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 children: cells,
               ),
               const SizedBox(height: 16),
-              const Divider(color: RC.stroke, height: 1),
+              Divider(color: RC.stroke, height: 1),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -170,12 +170,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         Text(t('Aktif Seriler', 'Active Streaks'), style: RText.title),
         const SizedBox(height: 12),
         if (streakHabits.isEmpty)
-          RCard(
-            border: RC.strokeSoft,
-            child: Text(
-                t('Henüz alışkanlık yok. Ana sayfadan ekle.',
-                    'No habits yet. Add some from Home.'),
-                style: const TextStyle(color: RC.muted, height: 1.5)),
+          REmpty(
+            icon: Icons.event_available_rounded,
+            title: t('Henüz alışkanlık yok', 'No habits yet'),
+            message: t(
+                'Ana sayfadan bir alışkanlık ekle; serilerin burada listelenecek.',
+                'Add a habit from Home — your streaks will be listed here.'),
           )
         else
           ...streakHabits.map((h) => _streakRow(s, h)),
@@ -205,7 +205,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: Text(
                 t('Bu gün için program yok. Aşağıdan ekle 👇',
                     'Nothing scheduled. Add below 👇'),
-                style: const TextStyle(color: RC.muted, height: 1.5)),
+                style: TextStyle(color: RC.muted, height: 1.5)),
           )
         else ...[
           ...events.map((e) => _scheduleRow(e.time, e.name, false, () {
@@ -240,11 +240,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.schedule,
+                          Icon(Icons.schedule,
                               size: 18, color: RC.purpleBright),
                           const SizedBox(width: 6),
                           Text(_time == null ? t('Saat', 'Time') : _timeStr,
-                              style: const TextStyle(color: RC.text)),
+                              style: TextStyle(color: RC.text)),
                         ],
                       ),
                     ),
@@ -253,21 +253,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Expanded(
                     child: TextField(
                       controller: _nameCtrl,
-                      style: const TextStyle(color: RC.text),
+                      style: TextStyle(color: RC.text),
                       decoration: InputDecoration(
                         hintText: t('örn. Tenis dersi', 'e.g. Tennis class'),
-                        hintStyle: const TextStyle(color: RC.muted),
+                        hintStyle: TextStyle(color: RC.muted),
                         filled: true,
                         fillColor: RC.card2,
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 14),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: RC.stroke),
+                          borderSide: BorderSide(color: RC.stroke),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: RC.stroke),
+                          borderSide: BorderSide(color: RC.stroke),
                         ),
                       ),
                     ),
@@ -289,7 +289,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           Flexible(
                             child: Text(
                                 t('Her hafta tekrarla', 'Repeat weekly'),
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: RC.muted, fontSize: 13)),
                           ),
                         ],
@@ -346,7 +346,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               SizedBox(
                 width: 48,
                 child: Text(time.isEmpty ? '—' : time,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: RC.purpleBright,
                         fontWeight: FontWeight.w700,
                         fontSize: 13)),
@@ -354,15 +354,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
               const SizedBox(width: 8),
               Expanded(
                   child: Text(name,
-                      style: const TextStyle(fontSize: 14, color: RC.text))),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 14, color: RC.text))),
               if (recurring)
-                const Padding(
-                  padding: EdgeInsets.only(right: 6),
-                  child: Text('🔁', style: TextStyle(fontSize: 13)),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Icon(Icons.repeat_rounded, size: 13, color: RC.muted),
                 ),
               GestureDetector(
                 onTap: onDelete,
-                child: const Icon(Icons.close, size: 18, color: RC.muted),
+                child: Icon(Icons.close, size: 18, color: RC.muted),
               ),
             ],
           ),
@@ -434,7 +436,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     fontWeight:
                         isSel ? FontWeight.w800 : FontWeight.w600)),
             if (dot)
-              const Positioned(
+              Positioned(
                 bottom: 6,
                 child: CircleAvatar(radius: 2.5, backgroundColor: RC.green),
               ),
@@ -456,7 +458,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
           const SizedBox(width: 7),
-          Text(label, style: const TextStyle(color: RC.muted, fontSize: 13)),
+          Text(label, style: TextStyle(color: RC.muted, fontSize: 13)),
         ],
       );
 
@@ -476,6 +478,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(h.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 3),
@@ -483,7 +487,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       h.category.isNotEmpty
                           ? h.category
                           : t('Alışkanlık', 'Habit'),
-                      style: const TextStyle(color: RC.muted, fontSize: 13)),
+                      style: TextStyle(color: RC.muted, fontSize: 13)),
                 ],
               ),
             ),
@@ -492,17 +496,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
               children: [
                 Row(
                   children: [
-                    const Text('🔥', style: TextStyle(fontSize: 18)),
+                    Icon(Icons.local_fire_department_rounded, size: 18, color: RC.amber),
                     const SizedBox(width: 4),
                     Text('$streak',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             color: RC.amber)),
                   ],
                 ),
                 Text(t('gün seri', 'day streak'),
-                    style: const TextStyle(color: RC.muted, fontSize: 12)),
+                    style: TextStyle(color: RC.muted, fontSize: 12)),
               ],
             ),
           ],

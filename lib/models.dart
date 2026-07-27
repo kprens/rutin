@@ -24,6 +24,15 @@ class Streak {
   /// Kaç kez sıfırlandı (nüksetme sayısı). Yeni arayüzde rozet/istatistik için.
   int relapses;
 
+  /// "Geleceğe Mektup" — kullanıcının en kararlı anında (genelde bırakma
+  /// gününde) kendine yazdığı, NEDEN bıraktığını anlatan mesaj.
+  ///
+  /// Kriz anında kullanıcıya kendi sözleriyle geri gösterilir (bkz.
+  /// crisis_screen.dart). Bu, dışarıdan gelen hiçbir motivasyon sözünün
+  /// yapamayacağı bir şeyi yapar: kişiyi kendi kararıyla yüzleştirir.
+  /// Boş = kullanıcı henüz mektup yazmamış.
+  String letter;
+
   Streak({
     required this.id,
     required this.name,
@@ -33,6 +42,7 @@ class Streak {
     this.dailyHours = 0,
     this.emoji = '',
     this.relapses = 0,
+    this.letter = '',
   });
 
   /// Takvim günü bazlı hesap: gece yarısı geçince gün +1 olur
@@ -64,6 +74,7 @@ class Streak {
         'dailyHours': dailyHours,
         'emoji': emoji,
         'relapses': relapses,
+        'letter': letter,
       };
 
   factory Streak.fromJson(Map<String, dynamic> j) => Streak(
@@ -75,6 +86,7 @@ class Streak {
         dailyHours: ((j['dailyHours'] ?? 0) as num).toDouble(),
         emoji: (j['emoji'] ?? '') as String,
         relapses: (j['relapses'] ?? 0) as int,
+        letter: (j['letter'] ?? '') as String,
       );
 }
 
@@ -165,6 +177,57 @@ class WaterLogEntry {
   factory WaterLogEntry.fromJson(Map<String, dynamic> j) => WaterLogEntry(
         ml: (j['ml'] ?? 0) as int,
         time: (j['time'] ?? '') as String,
+      );
+}
+
+/// Bir kriz/nüks anında toplanan TEK DOKUNUŞLUK bağlam kaydı.
+///
+/// Neden var: Kullanıcının "ne zaman ve neden zorlandığı" verisi olmadan
+/// kişisel risk tahmini ve tetikleyici analizi yapılamaz. Bu kayıtlar
+/// birikmeden Faz 3 özellikleri (Risk Penceresi, Tetikleyici Haritası)
+/// boş çalışır — bu yüzden veri toplama BUGÜN başlamalıdır.
+///
+/// Toplama kuralları (bkz. ui/trigger_sheet.dart):
+///  • Tek dokunuş, en fazla bir soru. Asla zorunlu değil, her zaman
+///    atlanabilir.
+///  • Kriz ANINDA sorulmaz — kriz atlatıldıktan ya da nüks kaydedildikten
+///    SONRA sorulur. İnsanın en zor anında anket doldurtmak zalimliktir.
+class TriggerEntry {
+  /// Hangi bırakma kaydıyla ilgili.
+  final int streakId;
+
+  /// Olay zamanı (epoch ms). Saat/gün deseni analizinin temeli budur.
+  final int atMs;
+
+  /// Tetikleyici anahtarı: 'stress' | 'boredom' | 'social' | 'tired' |
+  /// 'anger' | 'habit' | 'celebration' | 'other'
+  final String trigger;
+
+  /// Sonuç: true = atlatıldı, false = nüksetti.
+  /// Hangi tetikleyicide dayanabildiğini/düştüğünü ayırt etmeyi sağlar.
+  final bool survived;
+
+  const TriggerEntry({
+    required this.streakId,
+    required this.atMs,
+    required this.trigger,
+    required this.survived,
+  });
+
+  DateTime get at => DateTime.fromMillisecondsSinceEpoch(atMs);
+
+  Map<String, dynamic> toJson() => {
+        'streakId': streakId,
+        'atMs': atMs,
+        'trigger': trigger,
+        'survived': survived,
+      };
+
+  factory TriggerEntry.fromJson(Map<String, dynamic> j) => TriggerEntry(
+        streakId: (j['streakId'] ?? 0) as int,
+        atMs: (j['atMs'] ?? 0) as int,
+        trigger: (j['trigger'] ?? 'other') as String,
+        survived: (j['survived'] ?? true) as bool,
       );
 }
 

@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../app_info.dart';
 import '../l10n.dart';
 import '../store.dart';
 import 'rutin_ui.dart';
 import 'ui_logic.dart';
 import 'achievements_screen.dart';
+import 'friends_screen.dart';
+import 'insights_screen.dart';
 import 'paywall_screen.dart';
 import 'settings_screen.dart';
 import 'water_screen.dart';
+import 'weekly_report_screen.dart';
 import 'onboarding_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -84,24 +88,46 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-              Text(name, style: RText.h2),
+              Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: RText.h2),
               const SizedBox(height: 4),
               Text(t('Üyelik: $since', 'Member since $since'), style: RText.muted),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
-                  color: s.isPro ? RC.tintPurple : RC.tintAmber,
+                  color: s.hasPro ? RC.tintPurple : RC.tintAmber,
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(
-                      color: (s.isPro ? RC.purple : RC.amber)
+                      color: (s.hasPro ? RC.purple : RC.amber)
                           .withValues(alpha: 0.4)),
                 ),
-                child: Text(
-                    s.isPro ? '💎  ${t('Pro Üye', 'Pro Member')}' : '⭐  ${t('Ücretsiz', 'Free Plan')}',
-                    style: TextStyle(
-                        color: s.isPro ? RC.purpleBright : RC.amber,
-                        fontWeight: FontWeight.w700)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                        s.isPro
+                            ? Icons.diamond_rounded
+                            : s.proTrialActive
+                                ? Icons.hourglass_top_rounded
+                                : Icons.star_rounded,
+                        size: 16,
+                        color: s.hasPro ? RC.purpleBright : RC.amber),
+                    const SizedBox(width: 6),
+                    Text(
+                        s.isPro
+                            ? t('Pro Üye', 'Pro Member')
+                            : s.proTrialActive
+                                ? t('Pro (deneme)', 'Pro (trial)')
+                                : t('Ücretsiz', 'Free Plan'),
+                        style: TextStyle(
+                            color: s.hasPro ? RC.purpleBright : RC.amber,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -127,18 +153,18 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        _statMini('🔥', '$totalStreaks',
+                        _statMini(Icons.local_fire_department_rounded, '$totalStreaks',
                             t('Toplam Seri', 'Total Streaks'), RC.amber),
-                        _statMini('🏆', '$earned',
+                        _statMini(Icons.emoji_events_rounded, '$earned',
                             t('Başarım', 'Achievements'), RC.purpleBright),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        _statMini('✅', '${s.tasks.length}',
+                        _statMini(Icons.check_circle_rounded, '${s.tasks.length}',
                             t('Alışkanlık', 'Active Habits'), RC.green),
-                        _statMini('📅', '${s.daysActive}',
+                        _statMini(Icons.calendar_today_rounded, '${s.daysActive}',
                             t('Aktif Gün', 'Days Active'), RC.blue),
                       ],
                     ),
@@ -151,16 +177,26 @@ class ProfileScreen extends StatelessWidget {
         const SizedBox(height: 20),
 
         // ---- Menü ----
-        _menu(context, '🏆', t('Başarımlar', 'Achievements'),
+        _menu(context, Icons.psychology_rounded, t('İçgörüler', 'Insights'),
+            const InsightsScreen()),
+        const SizedBox(height: 12),
+        _menu(context, Icons.insights_rounded,
+            t('Haftalık Rapor', 'Weekly Report'),
+            const WeeklyReportScreen()),
+        const SizedBox(height: 12),
+        _menu(context, Icons.emoji_events_rounded, t('Başarımlar', 'Achievements'),
             const AchievementsScreen()),
         const SizedBox(height: 12),
-        _menu(context, '💎', t('Pro\'ya Geç', 'Go Premium'),
-            const PaywallScreen(),
+        _menu(context, Icons.people_alt_rounded, t('Arkadaşlar', 'Friends'),
+            const FriendsScreen()),
+        const SizedBox(height: 12),
+        _menu(context, Icons.diamond_rounded, t('Pro\'ya Geç', 'Go Premium'),
+            const PaywallScreen(source: 'profile'),
             highlight: true),
         const SizedBox(height: 12),
-        _menu(context, '⚙️', t('Ayarlar', 'Settings'), const SettingsScreen()),
+        _menu(context, Icons.settings_rounded, t('Ayarlar', 'Settings'), const SettingsScreen()),
         const SizedBox(height: 12),
-        _menu(context, '💧', t('Su Takibi', 'Water Tracker'),
+        _menu(context, Icons.water_drop_rounded, t('Su Takibi', 'Water Tracker'),
             const WaterScreen()),
         const SizedBox(height: 24),
 
@@ -176,14 +212,14 @@ class ProfileScreen extends StatelessWidget {
               border: Border.all(color: RC.red.withValues(alpha: 0.4)),
             ),
             child: Text(t('Çıkış Yap', 'Sign Out'),
-                style: const TextStyle(
+                style: TextStyle(
                     color: RC.red, fontWeight: FontWeight.w700, fontSize: 16)),
           ),
         ),
         const SizedBox(height: 20),
         Center(
-          child: Text(t('Rutin v1.0.0 · ❤️ ile yapıldı', 'Rutin v1.0.0 · Made with ❤️'),
-              style: const TextStyle(color: RC.faint, fontSize: 13)),
+          child: Text(t('Rutin v$kAppVersion · ❤️ ile yapıldı', 'Rutin v$kAppVersion · Made with ❤️'),
+              style: TextStyle(color: RC.faint, fontSize: 13)),
         ),
       ],
     );
@@ -206,11 +242,11 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  Widget _statMini(String emoji, String value, String label, Color color) {
+  Widget _statMini(IconData icon, String value, String label, Color color) {
     return Expanded(
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
+          Icon(icon, size: 18, color: color),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -221,7 +257,7 @@ class ProfileScreen extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 20, fontWeight: FontWeight.w800, color: color)),
                 Text(label,
-                    style: const TextStyle(color: RC.muted, fontSize: 12)),
+                    style: TextStyle(color: RC.muted, fontSize: 12)),
               ],
             ),
           ),
@@ -230,7 +266,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _menu(BuildContext context, String emoji, String label, Widget target,
+  Widget _menu(BuildContext context, IconData icon, String label, Widget target,
       {bool highlight = false}) {
     return RCard(
       radius: 18,
@@ -241,8 +277,9 @@ class ProfileScreen extends StatelessWidget {
           context, MaterialPageRoute(builder: (_) => target)),
       child: Row(
         children: [
-          EmojiTile(emoji,
-              tint: highlight ? RC.purple.withValues(alpha: 0.2) : RC.card2),
+          IconTile(icon,
+              tint: highlight ? RC.purple.withValues(alpha: 0.2) : RC.card2,
+              iconColor: highlight ? RC.purpleBright : RC.text),
           const SizedBox(width: 14),
           Text(label,
               style: TextStyle(

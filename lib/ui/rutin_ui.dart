@@ -11,61 +11,97 @@ library;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../l10n.dart';
+
+import '../theme.dart';
+
 /// ------------------------- RENK PALETİ -------------------------
+/// Not: Bu değerler artık sabit değil — kullanıcının Tema ekranından
+/// seçtiği `currentTheme` (theme.dart) ve Ayarlar'daki Koyu Mod tercihine
+/// (`useDarkPalette`) göre HER ÇAĞRIDA taze okunuyor. Böylece hem tema
+/// hem açık/koyu mod değişimi bu sistemi kullanan ekranlara (Settings,
+/// Home, vb.) da yansır.
 class RC {
   RC._();
 
+  static RutinColors get _p =>
+      useDarkPalette ? currentTheme.dark : currentTheme.light;
+
   // Zeminler
-  static const bg = Color(0xFF07080D); // ana arka plan (neredeyse siyah)
-  static const bgTop = Color(0xFF141428); // başlıklardaki üst gradyan
-  static const card = Color(0xFF12141C); // standart kart
-  static const card2 = Color(0xFF171923); // iç kart / input
-  static const stroke = Color(0x14FFFFFF); // kart kenarı (beyaz %8)
-  static const strokeSoft = Color(0x0DFFFFFF); // daha hafif kenar
+  static Color get bg => _p.bg; // ana arka plan
+  static Color get bgTop =>
+      Color.alphaBlend(_p.accent.withValues(alpha: 0.10), _p.bg); // başlık üstü gradyan
+  static Color get card => _p.card; // standart kart
+  static Color get card2 => _p.card2; // iç kart / input
+  static Color get stroke => _p.cardBorder; // kart kenarı
+  static Color get strokeSoft =>
+      stroke.withValues(alpha: stroke.a * 0.5); // daha hafif kenar
 
   // Metin
-  static const text = Color(0xFFF3F4FA);
-  static const muted = Color(0xFF8A8FA3);
-  static const faint = Color(0xFF4C5064);
+  static Color get text => _p.text;
+  static Color get muted => _p.muted;
+  /// Üçüncü metin kademesi.
+  ///
+  /// Eskiden `muted`'in %45 saydamlıkla açılmış haliydi ve ölçülen kontrast
+  /// **1.55–2.32:1** idi — WCAG AA'nın (4.5:1) çok altında, 20 tema/mod
+  /// kombinasyonunun HEPSİNDE. Dekoratif bir renk olsa sorun olmazdı ama
+  /// gerçek metinde kullanılıyordu: en kritiği paywall'daki deneme süresi /
+  /// fiyat / otomatik yenileme beyanı (11px). Okunamayan bir beyan, beyan
+  /// değildir — bu hem erişilebilirlik hem de mağaza uyumluluğu sorunuydu.
+  ///
+  /// Ölçüm şunu gösterdi: bu yazı boyutlarında (11–13px) `muted`'ten DAHA
+  /// AÇIK bir kademe AA'yı geçemiyor — saydamlık 1.0 olsa bile sınırda
+  /// kalıyor. Yani üçüncü kademe matematiksel olarak mümkün değil; `faint`
+  /// artık `muted` ile aynı. Görsel hiyerarşi renk yerine yazı boyutu ve
+  /// ağırlığıyla kurulmalı.
+  static Color get faint => _p.muted;
 
   // Aksanlar
-  static const purple = Color(0xFF7C6BF0); // birincil
-  static const purpleBright = Color(0xFF9B8CFF); // parlama / vurgu
-  static const teal = Color(0xFF4FD6BB); // recovery / temiz gün
-  static const blue = Color(0xFF5BB4F2); // su
-  static const amber = Color(0xFFF3B54A); // streak / best day
-  static const green = Color(0xFF5FBE85); // takvim "hepsi bitti"
-  static const greenDeep = Color(0xFF2E6B47);
-  static const pink = Color(0xFFE86A86); // active streaks metrik
-  static const red = Color(0xFFF0655F); // sil / çıkış
+  static Color get purple => _p.accent; // birincil
+  static Color get purpleBright => _p.accent2; // parlama / vurgu
+  static Color get teal => _p.blue; // recovery / temiz gün
+  static Color get blue => _p.blue; // su
+  static Color get amber => _p.amber; // streak / best day
+  static Color get green => _p.green; // takvim "hepsi bitti"
+  static Color get greenDeep =>
+      Color.alphaBlend(_p.green.withValues(alpha: 0.55), _p.bg);
+  static Color get pink =>
+      Color.lerp(_p.red, _p.accent2, 0.5)!; // active streaks metrik
+  static Color get red => _p.red; // sil / çıkış
 
   // Kart tint'leri (analytics kartları)
-  static const tintPurple = Color(0xFF171634);
-  static const tintAmber = Color(0xFF2A2413);
-  static const tintGreen = Color(0xFF10261A);
-  static const tintPink = Color(0xFF2A1620);
-  static const tintTeal = Color(0xFF0E2622);
-  static const tintBlue = Color(0xFF0E1E2C);
+  static Color get tintPurple =>
+      Color.alphaBlend(purple.withValues(alpha: 0.14), _p.bg);
+  static Color get tintAmber =>
+      Color.alphaBlend(amber.withValues(alpha: 0.14), _p.bg);
+  static Color get tintGreen =>
+      Color.alphaBlend(green.withValues(alpha: 0.14), _p.bg);
+  static Color get tintPink =>
+      Color.alphaBlend(pink.withValues(alpha: 0.14), _p.bg);
+  static Color get tintTeal =>
+      Color.alphaBlend(teal.withValues(alpha: 0.14), _p.bg);
+  static Color get tintBlue =>
+      Color.alphaBlend(blue.withValues(alpha: 0.14), _p.bg);
 }
 
-/// Sık kullanılan gradyanlar.
+/// Sık kullanılan gradyanlar — bunlar da artık seçili temaya göre üretiliyor.
 class RG {
   RG._();
-  static const purpleBtn = LinearGradient(
-    colors: [Color(0xFF8B78F5), Color(0xFF6C5AE0)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  static const blueBtn = LinearGradient(
-    colors: [Color(0xFF74C3F7), Color(0xFF4BA3EC)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-  static LinearGradient header = const LinearGradient(
-    colors: [Color(0xFF16172B), Color(0xFF07080D)],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-  );
+  static LinearGradient get purpleBtn => LinearGradient(
+        colors: [RC.purple, RC.purpleBright],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+  static LinearGradient get blueBtn => LinearGradient(
+        colors: [RC.blue, RC.purpleBright],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      );
+  static LinearGradient get header => LinearGradient(
+        colors: [RC.bgTop, RC.bg],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
 }
 
 /// ------------------------- TEMA -------------------------
@@ -74,7 +110,7 @@ ThemeData buildRutinDarkTheme() {
     useMaterial3: true,
     brightness: Brightness.dark,
     scaffoldBackgroundColor: RC.bg,
-    colorScheme: const ColorScheme.dark(
+    colorScheme: ColorScheme.dark(
       surface: RC.bg,
       primary: RC.purple,
       secondary: RC.teal,
@@ -90,15 +126,17 @@ ThemeData buildRutinDarkTheme() {
 /// ------------------------- METİN STİLLERİ -------------------------
 class RText {
   RText._();
-  static const h1 = TextStyle(
+  static TextStyle get h1 => TextStyle(
       fontSize: 34, fontWeight: FontWeight.w800, color: RC.text, height: 1.05);
-  static const h2 = TextStyle(
+  static TextStyle get h2 => TextStyle(
       fontSize: 26, fontWeight: FontWeight.w800, color: RC.text, height: 1.1);
-  static const title = TextStyle(
+  static TextStyle get title => TextStyle(
       fontSize: 20, fontWeight: FontWeight.w700, color: RC.text);
-  static const body = TextStyle(fontSize: 15, color: RC.text, height: 1.35);
-  static const muted = TextStyle(fontSize: 14, color: RC.muted, height: 1.4);
-  static const label = TextStyle(
+  static TextStyle get body =>
+      TextStyle(fontSize: 15, color: RC.text, height: 1.35);
+  static TextStyle get muted =>
+      TextStyle(fontSize: 14, color: RC.muted, height: 1.4);
+  static TextStyle get label => TextStyle(
       fontSize: 12,
       fontWeight: FontWeight.w700,
       letterSpacing: 1.2,
@@ -168,7 +206,7 @@ class ProgressRing extends StatelessWidget {
   final double value; // 0..1
   final double size;
   final double stroke;
-  final Color color;
+  final Color? color;
   final Color track;
   final Widget? center;
   final bool rounded;
@@ -179,7 +217,7 @@ class ProgressRing extends StatelessWidget {
     required this.value,
     this.size = 120,
     this.stroke = 10,
-    this.color = RC.purple,
+    this.color,
     this.track = const Color(0x1AFFFFFF),
     this.center,
     this.rounded = true,
@@ -188,6 +226,7 @@ class ProgressRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ringColor = color ?? RC.purple;
     return SizedBox(
       width: size,
       height: size,
@@ -196,7 +235,7 @@ class ProgressRing extends StatelessWidget {
         children: [
           CustomPaint(
             size: Size.square(size),
-            painter: _RingPainter(value, stroke, color, track, rounded, startAngle),
+            painter: _RingPainter(value, stroke, ringColor, track, rounded, startAngle),
           ),
           if (center != null) center!,
         ],
@@ -246,18 +285,18 @@ class _RingPainter extends CustomPainter {
 /// Emoji ikon kutusu (habit / recovery avatarları).
 class EmojiTile extends StatelessWidget {
   final String emoji;
-  final Color tint;
+  final Color? tint;
   final double size;
   final double radius;
   const EmojiTile(this.emoji,
-      {super.key, this.tint = RC.card2, this.size = 48, this.radius = 14});
+      {super.key, this.tint, this.size = 48, this.radius = 14});
   @override
   Widget build(BuildContext context) => Container(
         width: size,
         height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: tint,
+          color: tint ?? RC.card2,
           borderRadius: BorderRadius.circular(radius),
           border: Border.all(color: RC.stroke),
         ),
@@ -265,46 +304,99 @@ class EmojiTile extends StatelessWidget {
       );
 }
 
+/// [EmojiTile] ile aynı görünüm, ama sabit/dekoratif (kullanıcı seçimi
+/// olmayan) menü/simge kutuları için emoji yerine gerçek bir [Icon]
+/// kullanır — ör. profil menüsündeki "Başarımlar", "Ayarlar" satırları.
+class IconTile extends StatelessWidget {
+  final IconData icon;
+  final Color? tint;
+  final Color? iconColor;
+  final double size;
+  final double radius;
+  const IconTile(this.icon,
+      {super.key, this.tint, this.iconColor, this.size = 48, this.radius = 14});
+  @override
+  // ExcludeSemantics: bu kutu tanımı gereği DEKORATİF (sınıf açıklamasına
+  // bakınız) — yanındaki metin zaten anlamı taşıyor. Dışlanmazsa ekran
+  // okuyucu her satırda önce anlamsız bir ikon düğümü okur ve listede
+  // gezinmek iki kat uzun sürer.
+  Widget build(BuildContext context) => ExcludeSemantics(
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: tint ?? RC.card2,
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: RC.stroke),
+          ),
+          child: Icon(icon, size: size * 0.5, color: iconColor ?? RC.text),
+        ),
+      );
+}
+
 /// Degrade birincil buton (Continue, Create Account, Add...).
 class RButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
-  final Gradient gradient;
+  final Gradient? gradient;
   final double height;
   final Widget? leading;
   const RButton(this.label,
       {super.key,
       this.onTap,
-      this.gradient = RG.purpleBtn,
-      this.height = 58,
+      this.gradient,
+      this.height = 52, // önceden 58 — genel geri bildirim üzerine biraz küçültüldü
       this.leading});
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: height,
+    final grad = gradient ?? RG.purpleBtn;
+    // ERİŞİLEBİLİRLİK: GestureDetector hiçbir semantik bilgi üretmez — ekran
+    // okuyucu yalnızca metni okur, bunun BİR BUTON olduğunu ve dokunulabilir
+    // olup olmadığını söylemez. `button: true` VoiceOver/TalkBack'e "düğme"
+    // dedirtir; `enabled` ise onTap null iken "devre dışı" bilgisini verir.
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: label,
+      // Metin zaten label olarak verildi; alttaki Text'in ayrıca okunması
+      // etiketin iki kez seslendirilmesine yol açardı.
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: height,
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-                color: gradient.colors.first.withValues(alpha: 0.4),
-                blurRadius: 24,
-                offset: const Offset(0, 8)),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (leading != null) ...[leading!, const SizedBox(width: 8)],
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white)),
-          ],
+          decoration: BoxDecoration(
+            gradient: grad,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                  color: grad.colors.first.withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6)),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leading != null) ...[leading!, const SizedBox(width: 8)],
+              Flexible(
+                // Dinamik yazı boyutu büyütüldüğünde (Ayarlar → Erişilebilirlik
+                // → Daha Büyük Metin) etiket sabit yükseklikli butonu taşırıp
+                // sarı-siyah "overflow" şeridine yol açıyordu. Flexible +
+                // ellipsis, buton düzenini bozmadan metni sığdırır.
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -318,26 +410,255 @@ class RSwitch extends StatelessWidget {
   const RSwitch({super.key, required this.value, this.onChanged});
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => onChanged?.call(!value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: 52,
-        height: 30,
-        padding: const EdgeInsets.all(3),
-        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-        decoration: BoxDecoration(
-          color: value ? RC.purple : const Color(0xFF2A2D3A),
-          borderRadius: BorderRadius.circular(99),
-          boxShadow: value
-              ? [BoxShadow(color: RC.purple.withValues(alpha: 0.5), blurRadius: 12)]
-              : null,
+    // ERİŞİLEBİLİRLİK — üç ayrı sorun vardı:
+    //
+    // 1. Semantik yok: ekran okuyucu bunun bir anahtar olduğunu da, açık mı
+    //    kapalı mı olduğunu da söyleyemiyordu. Ayarlar ekranı tamamen bu
+    //    bileşenden oluştuğu için görme engelli bir kullanıcı hiçbir ayarı
+    //    yönetemezdi.
+    // 2. Dokunma hedefi 52x30'du; hem iOS (44pt) hem Android (48dp) minimumun
+    //    altında. Görsel boyut korunuyor, dokunulabilir alan büyütülüyor.
+    // 3. Durum YALNIZCA renkle anlatılıyordu (mor/gri). Renk körlüğünde iki
+    //    durum ayırt edilemiyordu; artık topuz konumu da (sola/sağa) bilgi
+    //    taşıyor — zaten öyleydi, semantik etiketle birlikte artık
+    //    seslendiriliyor da.
+    return Semantics(
+      toggled: value,
+      enabled: onChanged != null,
+      child: GestureDetector(
+        onTap: () => onChanged?.call(!value),
+        // opaque: yalnızca boyanan piksellerin değil, tüm 48dp'lik alanın
+        // dokunmayı yakalaması için.
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: 48,
+          width: 52,
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 52,
+              height: 30,
+              padding: const EdgeInsets.all(3),
+              alignment:
+                  value ? Alignment.centerRight : Alignment.centerLeft,
+              decoration: BoxDecoration(
+                // Kapalı durum rengi eskiden sabit `0xFF2A2D3A` idi — koyu
+                // lacivert bir ton. Koyu temada doğru görünüyordu ama AÇIK
+                // temada beyaz kartın üstünde neredeyse siyah bir leke gibi
+                // duruyordu ve tema seçiminden bağımsızdı. Artık paletten
+                // geliyor.
+                color: value ? RC.purple : RC.strokeSoft,
+                borderRadius: BorderRadius.circular(99),
+                boxShadow: value
+                    ? [
+                        BoxShadow(
+                            color: RC.purple.withValues(alpha: 0.5),
+                            blurRadius: 12)
+                      ]
+                    : null,
+              ),
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    // Kapalıyken topuz açık zemin üzerinde beyaz kalıyordu ve
+                    // kaybolabiliyordu; ince kenarlık onu her durumda
+                    // görünür kılar.
+                    border: Border.all(color: RC.stroke)),
+              ),
+            ),
+          ),
         ),
-        child: Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(
-              color: Colors.white, shape: BoxShape.circle),
+      ),
+    );
+  }
+}
+
+/// Standart BOŞ DURUM.
+///
+/// Boş durumlar uygulamanın en çok ihmal edilen ekranlarıdır, oysa yeni
+/// kullanıcının ilk gördüğü şey tam olarak budur. Önceden her ekran bunu
+/// kendi başına çözüyordu: çoğu yerde tek satır gri metin, bazı yerlerde
+/// hiçbir şey. İki sorunu vardı — görsel olarak "bozuk/eksik" hissi
+/// veriyordu ve kullanıcıya NE YAPACAĞINI söylemiyordu.
+///
+/// Buradaki kurgu üç parçalı: ikon (ekranın boş değil, kasıtlı olduğunu
+/// gösterir), başlık + açıklama (ne olduğu ve neden), ve isteğe bağlı bir
+/// eylem butonu. Boş durum bir hata değil, bir davettir.
+class REmpty extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? message;
+
+  /// Eylem butonu — varsa kullanıcı ekrandan çıkmadan devam edebilir.
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  /// Dar alanlarda (kart içi) daha küçük bir varyant.
+  final bool compact;
+
+  const REmpty({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.message,
+    this.actionLabel,
+    this.onAction,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RCard(
+      color: RC.card,
+      border: RC.strokeSoft,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: compact ? 8 : 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Dekoratif: anlamı alttaki başlık taşıyor, ekran okuyucunun
+            // ayrıca bir ikon düğümü okumasına gerek yok.
+            ExcludeSemantics(
+              child: Container(
+                width: compact ? 44 : 60,
+                height: compact ? 44 : 60,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: RC.card2,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: RC.stroke),
+                ),
+                child: Icon(icon,
+                    size: compact ? 22 : 28, color: RC.muted),
+              ),
+            ),
+            SizedBox(height: compact ? 10 : 16),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: RC.text,
+                    fontSize: compact ? 14 : 16,
+                    fontWeight: FontWeight.w700)),
+            if (message != null) ...[
+              const SizedBox(height: 6),
+              Text(message!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: RC.muted,
+                      fontSize: compact ? 12.5 : 13.5,
+                      height: 1.45)),
+            ],
+            if (actionLabel != null && onAction != null) ...[
+              SizedBox(height: compact ? 12 : 18),
+              RButton(actionLabel!, onTap: onAction, height: 44),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Standart HATA DURUMU — yeniden deneme imkânıyla.
+///
+/// "Bir şeyler ters gitti" deyip bırakmak kullanıcıyı çıkmaza sokar; her hata
+/// ekranı bir çıkış yolu sunmalı.
+class RError extends StatelessWidget {
+  final String title;
+  final String? message;
+  final VoidCallback? onRetry;
+
+  const RError({
+    super.key,
+    required this.title,
+    this.message,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) => REmpty(
+        icon: Icons.cloud_off_rounded,
+        title: title,
+        message: message,
+        actionLabel: onRetry == null ? null : t('Tekrar Dene', 'Try Again'),
+        onAction: onRetry,
+      );
+}
+
+/// VERİYE ULAŞILAMIYOR uyarısı.
+///
+/// NEDEN AYRI BİR BİLEŞEN: Yükleme başarısız olduğunda ekranda görünen
+/// boşluk, kullanıcı açısından "veri yok"tan ayırt edilemez. 200 günlük
+/// serisi olan biri uygulamayı açıp boş ekran görürse verisinin silindiğini
+/// düşünür — bu, kategorideki en sık 1 yıldız sebebidir ve kullanıcı
+/// genellikle uygulamayı silerek "çözer".
+///
+/// Bu şerit tam olarak şunu söyler: veri duruyor, sorun geçici, şu an
+/// yazdıkların kaybolmayacak. Mesajın tonu bilinçli olarak sakinleştirici.
+class DataUnavailableBanner extends StatelessWidget {
+  final VoidCallback? onRetry;
+  const DataUnavailableBanner({super.key, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: RCard(
+        color: Color.alphaBlend(RC.amber.withValues(alpha: 0.12), RC.card),
+        border: RC.amber.withValues(alpha: 0.4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: Icon(Icons.cloud_off_rounded,
+                  size: 20, color: RC.amber),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      t('Verilerine şu an ulaşılamıyor',
+                          "Can't reach your data right now"),
+                      style: TextStyle(
+                          color: RC.text,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(
+                      t('Verilerin silinmedi — bağlantı kurulunca geri gelecek. Bu sırada yaptığın değişiklikler cihazında saklanıyor.',
+                          "Your data isn't lost — it'll come back once you're connected. Changes you make now are saved on your device."),
+                      style: TextStyle(
+                          color: RC.muted, fontSize: 12.5, height: 1.45)),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: onRetry,
+                      child: Semantics(
+                        button: true,
+                        label: t('Tekrar dene', 'Try again'),
+                        excludeSemantics: true,
+                        child: Container(
+                          // 44dp: dokunma hedefi minimumu.
+                          height: 44,
+                          alignment: Alignment.centerLeft,
+                          child: Text(t('Tekrar dene', 'Try again'),
+                              style: TextStyle(
+                                  color: RC.purpleBright,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13.5)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

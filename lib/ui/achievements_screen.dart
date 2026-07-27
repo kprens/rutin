@@ -52,19 +52,19 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                 border: RC.amber.withValues(alpha: 0.3),
                 child: Row(
                   children: [
-                    const Text('🏆', style: TextStyle(fontSize: 44)),
+                    Icon(Icons.emoji_events_rounded, size: 44, color: RC.amber),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('$earned/${all.length}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 30,
                                   fontWeight: FontWeight.w800,
                                   color: RC.amber)),
                           Text(t('rozet kazanıldı', 'badges earned'),
-                              style: const TextStyle(
+                              style: TextStyle(
                                   color: RC.muted, fontSize: 14)),
                           const SizedBox(height: 10),
                           ClipRRect(
@@ -74,7 +74,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                               minHeight: 8,
                               backgroundColor: RC.card2,
                               valueColor:
-                                  const AlwaysStoppedAnimation(RC.amber),
+                                  AlwaysStoppedAnimation(RC.amber),
                             ),
                           ),
                         ],
@@ -93,6 +93,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                   itemCount: filters.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (_, i) => GestureDetector(
+                    key: ValueKey(filters[i].$2),
                     onTap: () => setState(() => _selected = i),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -122,7 +123,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                   child: Text(
                       t('Bu kategoride rozet yok.',
                           'No badges in this category.'),
-                      style: const TextStyle(color: RC.muted)),
+                      style: TextStyle(color: RC.muted)),
                 )
               else
                 GridView.count(
@@ -131,7 +132,12 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 14,
-                  childAspectRatio: 0.82,
+                  // Kart yüksekliği artırıldı (oran küçüldü): rozet adları ve
+                  // açıklamaları iki dilde farklı uzunlukta, ayrıca kullanıcı
+                  // sistem yazı boyutunu büyütmüş olabilir. Sabit yükseklikli
+                  // grid hücresinde metin taşıp "kayma"/overflow şeridi
+                  // çıkarıyordu.
+                  childAspectRatio: 0.72,
                   children: shown.map(_badge).toList(),
                 ),
             ],
@@ -149,6 +155,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       _ => RC.muted,
     };
     return RCard(
+      key: ValueKey(b.name),
       radius: 18,
       color: b.earned && rare ? RC.tintBlue : RC.card,
       border: b.earned && rare ? rarityColor.withValues(alpha: 0.4) : RC.stroke,
@@ -178,26 +185,39 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
               const SizedBox(height: 14),
               Opacity(
                 opacity: b.earned ? 1 : 0.35,
-                child: Text(b.earned ? b.emoji : '🔒',
-                    style: const TextStyle(fontSize: 40)),
+                child: b.earned
+                    ? Text(b.emoji, style: const TextStyle(fontSize: 40))
+                    : Icon(Icons.lock_rounded, size: 40, color: RC.faint),
               ),
               const SizedBox(height: 12),
+              // maxLines + ellipsis: uzun rozet adı/açıklaması sabit
+              // yükseklikli grid hücresini taşırıp overflow şeridi
+              // ("kayma") oluşturuyordu.
               Text(b.name,
                   textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
+                      height: 1.2,
                       color: b.earned ? RC.text : RC.faint)),
               const SizedBox(height: 4),
-              Text(b.desc,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: RC.muted, fontSize: 12, height: 1.3)),
+              Flexible(
+                child: Text(b.desc,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: RC.muted, fontSize: 12, height: 1.3)),
+              ),
               const SizedBox(height: 8),
               Text(
                   b.earned
                       ? t('✓ Kazanıldı', '✓ Earned')
                       : t('Kilitli', 'Locked'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       color: b.earned
                           ? (rare ? rarityColor : RC.green)

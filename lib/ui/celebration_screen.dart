@@ -16,9 +16,9 @@ class UiCelebrationScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: RC.bg,
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF2A1E3F), RC.bg],
+            colors: [const Color(0xFF2A1E3F), RC.bg],
             begin: Alignment.topCenter,
             end: Alignment.center,
           ),
@@ -30,21 +30,21 @@ class UiCelebrationScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(),
-                const Text('🎉', style: TextStyle(fontSize: 88)),
+                Icon(Icons.celebration_rounded, size: 88, color: RC.purpleBright),
                 const SizedBox(height: 24),
                 Text('$milestone',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 72,
                         fontWeight: FontWeight.w800,
                         color: RC.purpleBright)),
                 Text(t('gün!', 'days!'),
-                    style: const TextStyle(fontSize: 22, color: RC.muted)),
+                    style: TextStyle(fontSize: 22, color: RC.muted)),
                 const SizedBox(height: 20),
                 Text(
                   t('"${streak.name}" için $milestone günlük kilometre taşına ulaştın. Harikasın!',
                       'You reached the $milestone-day milestone for "${streak.name}". Amazing!'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 16, color: RC.text, height: 1.5),
                 ),
                 const Spacer(),

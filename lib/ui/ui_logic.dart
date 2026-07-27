@@ -17,7 +17,7 @@ import 'rutin_ui.dart';
 
 // ------------------------- GÖRSEL TÜRETMELER -------------------------
 
-const _habitTints = <Color>[
+final _habitTints = <Color>[
   RC.tintPurple,
   RC.tintGreen,
   RC.tintAmber,
@@ -277,12 +277,11 @@ class _RecoverySheetState extends State<_RecoverySheet> {
     final hours =
         double.tryParse(_hours.text.trim().replaceAll(',', '.')) ?? 0;
     if (widget.existing == null) {
-      if (!s.canAddStreak) {
-        Navigator.pop(context);
-        _toast(t('Ücretsiz sınıra ulaştın — Pro ile sınırsız.',
-            'Free limit reached — go Pro for unlimited.'));
-        return;
-      }
+      // NOT: Buradaki eski "ücretsiz sınıra ulaştın" engeli kaldırıldı —
+      // bırakma takibi artık herkes için sınırsız (bkz. AppState.canAddStreak
+      // ve ABONELIK-STRATEJISI.md). Bağımlılıklar kümelenir; üçüncü bir
+      // bırakma hedefi eklemek isteyen kullanıcıyı duvara toslatmak, onu en
+      // kırılgan anında cezalandırmaktı.
       s.addStreak(name,
           start: _start, dailyCost: cost, dailyHours: hours, emoji: _emoji);
     } else {
@@ -318,8 +317,16 @@ class _RecoverySheetState extends State<_RecoverySheet> {
             final on = _name.text.trim().toLowerCase() == p.$2.toLowerCase();
             return GestureDetector(
               onTap: () => setState(() {
-                _name.text = p.$2;
-                _emoji = p.$1;
+                if (on) {
+                  // Zaten seçili olan bir hazır seçeneğe tekrar dokunmak onu
+                  // kaldırır (isim/emoji temizlenir) — önceden seçiliyi
+                  // kaldırmanın hiçbir yolu yoktu, elle silmek gerekiyordu.
+                  _name.clear();
+                  _emoji = '';
+                } else {
+                  _name.text = p.$2;
+                  _emoji = p.$1;
+                }
               }),
               child: Container(
                 padding:
@@ -393,20 +400,20 @@ class _RecoverySheetState extends State<_RecoverySheet> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.event, size: 18, color: RC.teal),
+                Icon(Icons.event, size: 18, color: RC.teal),
                 const SizedBox(width: 10),
                 Text(
                     _start == null
                         ? t('Bugün (varsayılan)', 'Today (default)')
                         : '${_start!.day}.${_start!.month}.${_start!.year}',
-                    style: const TextStyle(color: RC.text)),
+                    style: TextStyle(color: RC.text)),
               ],
             ),
           ),
         ),
         const SizedBox(height: 22),
         RButton(editing ? t('Kaydet', 'Save') : t('Başlat', 'Start'),
-            onTap: _save, gradient: const LinearGradient(colors: [RC.teal, RC.greenDeep])),
+            onTap: _save, gradient: LinearGradient(colors: [RC.teal, RC.greenDeep])),
       ],
     );
   }
@@ -427,8 +434,7 @@ Future<void> openSos(BuildContext context) async {
     return;
   }
   Streak? target = s.streaks.length == 1 ? s.streaks.first : null;
-  if (target == null) {
-    target = await showModalBottomSheet<Streak>(
+  target ??= await showModalBottomSheet<Streak>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _SheetScaffold(
@@ -445,9 +451,16 @@ Future<void> openSos(BuildContext context) async {
                       children: [
                         EmojiTile(recoveryEmojiFor(st), tint: RC.tintTeal),
                         const SizedBox(width: 14),
-                        Text(st.name,
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600)),
+                        // Expanded + ellipsis: Row içinde çıplak bir Text,
+                        // kullanıcı uzun bir isim girdiğinde satırı taşırıp
+                        // sarı-siyah overflow şeridine yol açıyordu.
+                        Expanded(
+                          child: Text(st.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w600)),
+                        ),
                       ],
                     ),
                   ),
@@ -455,7 +468,6 @@ Future<void> openSos(BuildContext context) async {
             .toList(),
       ),
     );
-  }
   if (target != null && context.mounted) {
     Navigator.push(context,
         MaterialPageRoute(builder: (_) => CrisisScreen(streak: target!)));
@@ -476,14 +488,14 @@ Future<bool> rConfirm(BuildContext context,
       backgroundColor: RC.card,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(title,
-          style: const TextStyle(color: RC.text, fontSize: 18)),
+          style: TextStyle(color: RC.text, fontSize: 18)),
       content: Text(message,
-          style: const TextStyle(color: RC.muted, height: 1.5)),
+          style: TextStyle(color: RC.muted, height: 1.5)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dCtx, false),
           child: Text(t('Vazgeç', 'Cancel'),
-              style: const TextStyle(color: RC.muted)),
+              style: TextStyle(color: RC.muted)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(dCtx, true),
@@ -503,19 +515,19 @@ Future<bool> rConfirm(BuildContext context,
 class _SheetScaffold extends StatelessWidget {
   final String title;
   final List<Widget> children;
-  final Color accent;
-  const _SheetScaffold(
-      {required this.title, required this.children, this.accent = RC.purple});
+  final Color? accent;
+  const _SheetScaffold({required this.title, required this.children, this.accent});
 
   @override
   Widget build(BuildContext context) {
+    final resolvedAccent = accent ?? RC.purple;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
       padding: EdgeInsets.only(bottom: bottom),
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: RC.card,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           border: Border(top: BorderSide(color: RC.stroke)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -537,7 +549,9 @@ class _SheetScaffold extends StatelessWidget {
               ),
               Text(title,
                   style: TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.w800, color: accent)),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: resolvedAccent)),
               const SizedBox(height: 18),
               ...children,
             ],
@@ -555,7 +569,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 8, left: 2),
         child: Text(text,
-            style: const TextStyle(
+            style: TextStyle(
                 color: RC.muted, fontSize: 13, fontWeight: FontWeight.w600)),
       );
 }
@@ -566,25 +580,25 @@ Widget _input(TextEditingController c, String hint,
     controller: c,
     keyboardType: keyboard,
     onChanged: onChanged,
-    style: const TextStyle(color: RC.text),
+    style: TextStyle(color: RC.text),
     decoration: InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: RC.muted),
+      hintStyle: TextStyle(color: RC.muted),
       filled: true,
       fillColor: RC.card2,
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: RC.stroke),
+        borderSide: BorderSide(color: RC.stroke),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: RC.stroke),
+        borderSide: BorderSide(color: RC.stroke),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: RC.purple),
+        borderSide: BorderSide(color: RC.purple),
       ),
     ),
   );
@@ -669,5 +683,62 @@ List<EarnedBadge> evaluateBadges(AppState s) {
     EarnedBadge('🏆', t('Kusursuz Hafta', 'Perfect Week'),
         t('Bir hafta tüm alışkanlıklar tamam', 'All habits done for a week'),
         'EPIC', 'Special', perfectWeek),
+
+    // ---- Ek rozetler ----
+    // Hepsi GERÇEK veriden hesaplanır (uydurma/erişilemez rozet yok) ve
+    // kolaydan zora bir merdiven oluşturur: kullanıcı her zaman "bir
+    // sonraki"ni görebilmeli, aksi halde rozet sistemi motive etmez.
+    EarnedBadge('🌱', t('Üç Gün', 'Three Days'),
+        t('Herhangi bir alışkanlıkta 3 gün seri', '3-day streak on any habit'),
+        'COMMON', 'Streak', maxHabit >= 3),
+    EarnedBadge('🗓️', t('İki Hafta', 'Two Weeks'),
+        t('Herhangi bir alışkanlıkta 14 gün seri', '14-day streak on any habit'),
+        'COMMON', 'Streak', maxHabit >= 14),
+    EarnedBadge('🎖️', t('Altmış Gün', 'Sixty Days'),
+        t('Herhangi bir alışkanlıkta 60 gün seri', '60-day streak on any habit'),
+        'EPIC', 'Streak', maxHabit >= 60),
+    EarnedBadge('🧱', t('Sağlam Temel', 'Solid Base'),
+        t('Aynı anda 3 alışkanlık takip et', 'Track 3 habits at once'),
+        'COMMON', 'Habit', s.tasks.length >= 3),
+    EarnedBadge('🎛️', t('Tam Program', 'Full Routine'),
+        t('Aynı anda 5 alışkanlık takip et', 'Track 5 habits at once'),
+        'RARE', 'Habit', s.tasks.length >= 5),
+    EarnedBadge('🚰', t('Su Ustası', 'Water Master'),
+        t('30 gün su hedefini tuttur', '30 days hitting water goal'),
+        'RARE', 'Water', waterGoalDays >= 30),
+    EarnedBadge('🌊', t('Akışta', 'In Flow'),
+        t('100 gün su hedefini tuttur', '100 days hitting water goal'),
+        'EPIC', 'Water', waterGoalDays >= 100),
+    EarnedBadge('🪙', t('İlk Birikim', 'First Savings'),
+        t('Bırakarak 100\$ biriktir', 'Save \$100 in recovery'),
+        'COMMON', 'Recovery', totalSaved >= 100),
+    EarnedBadge('💎', t('Servet', 'Fortune'),
+        t('Bırakarak 2000\$ biriktir', 'Save \$2000 in recovery'),
+        'EPIC', 'Recovery', totalSaved >= 2000),
+    EarnedBadge('🌤️', t('İlk Hafta Temiz', 'First Clean Week'),
+        t('Bir bırakmada 7 gün', '7 days on any recovery'),
+        'COMMON', 'Recovery', s.streaks.any((st) => st.days >= 7)),
+    EarnedBadge('🌗', t('Doksan Gün', 'Ninety Days'),
+        t('Bir bırakmada 90 gün', '90 days on any recovery'),
+        'EPIC', 'Recovery', s.streaks.any((st) => st.days >= 90)),
+    EarnedBadge('🎯', t('Çift Yol', 'Two Fronts'),
+        t('Aynı anda 2 şey bırak', 'Quit 2 things at once'),
+        'RARE', 'Recovery', s.streaks.length >= 2),
+    EarnedBadge('📆', t('Üç Kusursuz Hafta', 'Three Perfect Weeks'),
+        t('21 gün üst üste listeyi bitir', 'Finish your list 21 days straight'),
+        'EPIC', 'Special', s.checklistStreak >= 21),
+    EarnedBadge('👥', t('Yalnız Değilsin', 'Not Alone'),
+        t('Bir sorumluluk ortağı ekle', 'Add an accountability partner'),
+        'COMMON', 'Special', s.acceptedFriends.isNotEmpty),
+    EarnedBadge('✍️', t('Kendine Söz', 'Word to Yourself'),
+        t('Geleceğe mektup yaz', 'Write a letter to your future self'),
+        'COMMON', 'Special', s.streaks.any((st) => st.letter.isNotEmpty)),
+    EarnedBadge('🛡️', t('Dalgayı Aştın', 'Rode the Wave'),
+        t('Bir krizi atlat', 'Ride out a craving'),
+        'COMMON', 'Recovery', s.triggerLog.any((e) => e.survived)),
+    EarnedBadge('⚓', t('Sarsılmaz', 'Unshaken'),
+        t('10 krizi atlat', 'Ride out 10 cravings'),
+        'EPIC', 'Recovery',
+        s.triggerLog.where((e) => e.survived).length >= 10),
   ];
 }

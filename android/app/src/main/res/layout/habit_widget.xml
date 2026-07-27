@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ana ekran widget'ı düzeni — bkz. HabitWidgetProvider.kt.
+     Sabit 5 satır kullanılır (dinamik RemoteViewsService listesi yerine);
+     çoğu kullanıcının günlük alışkanlık sayısı için yeterli ve çok daha
+     basit/sağlam. Fazla satırlar (task sayısı < 5) GONE yapılır. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#0F1115"
+    android:padding="14dp">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bugün"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/widget_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="8dp"
+        android:text=""
+        android:textColor="#9C9BAA"
+        android:textSize="12sp" />
+
+    <!-- Satır 0 -->
+    <LinearLayout
+        android:id="@+id/widget_row_0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+        <TextView android:id="@+id/widget_emoji_0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_name_0" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#F2F1F5" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" />
+        <ImageView android:id="@+id/widget_check_0" android:layout_width="22dp" android:layout_height="22dp" />
+    </LinearLayout>
+
+    <!-- Satır 1 -->
+    <LinearLayout
+        android:id="@+id/widget_row_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+        <TextView android:id="@+id/widget_emoji_1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_name_1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#F2F1F5" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" />
+        <ImageView android:id="@+id/widget_check_1" android:layout_width="22dp" android:layout_height="22dp" />
+    </LinearLayout>
+
+    <!-- Satır 2 -->
+    <LinearLayout
+        android:id="@+id/widget_row_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+        <TextView android:id="@+id/widget_emoji_2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_name_2" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#F2F1F5" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" />
+        <ImageView android:id="@+id/widget_check_2" android:layout_width="22dp" android:layout_height="22dp" />
+    </LinearLayout>
+
+    <!-- Satır 3 -->
+    <LinearLayout
+        android:id="@+id/widget_row_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+        <TextView android:id="@+id/widget_emoji_3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_name_3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#F2F1F5" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" />
+        <ImageView android:id="@+id/widget_check_3" android:layout_width="22dp" android:layout_height="22dp" />
+    </LinearLayout>
+
+    <!-- Satır 4 -->
+    <LinearLayout
+        android:id="@+id/widget_row_4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp">
+        <TextView android:id="@+id/widget_emoji_4" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="16sp" android:layout_marginEnd="8dp" />
+        <TextView android:id="@+id/widget_name_4" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#F2F1F5" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" />
+        <ImageView android:id="@+id/widget_check_4" android:layout_width="22dp" android:layout_height="22dp" />
+    </LinearLayout>
+
+</LinearLayout>

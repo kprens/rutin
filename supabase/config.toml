@@ -1,0 +1,24 @@
+# Rutin — Supabase yerel proje yapılandırması.
+#
+# Bu dosya olmadan `supabase functions deploy` bu klasörden çalışmaz
+# (CLI "Cannot find project ref / config" hatası verir). Deploy akışı:
+#
+#   supabase login
+#   supabase link --project-ref <PROJE_REF>        # remote projeye bağla
+#   supabase functions deploy verify-receipt        # aşağıdaki ayar sayesinde
+#                                                    # --no-verify-jwt gerekmez
+#   supabase secrets set \
+#     GOOGLE_SERVICE_ACCOUNT_JSON='...' \
+#     GOOGLE_PACKAGE_NAME=com.alper.rutin \
+#     APPLE_SHARED_SECRET='...'
+#
+# project_id yalnızca YEREL bir etikettir; remote proje `supabase link` ile
+# bağlanır, bu dosyadaki değerden bağımsızdır.
+project_id = "rutin"
+
+# verify-receipt istemciden (lib/iap.dart) Authorization header'ı OLMADAN
+# çağrılır. verify_jwt = false olmazsa Supabase gateway isteği 401 ile
+# reddeder ve hiçbir satın alma doğrulanamaz (Pro açılmaz). Bu ayar, deploy
+# sırasında --no-verify-jwt bayrağını unutma riskini ortadan kaldırır.
+[functions.verify-receipt]
+verify_jwt = false
