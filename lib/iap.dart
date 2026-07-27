@@ -87,6 +87,22 @@ class Iap extends ChangeNotifier {
   /// Play sunucularına karşı doğrulama yapar ve { "valid": true|false } döner.
   static String verifyReceiptUrl = unconfiguredVerifyUrl;
 
+  /// Aboneliğin yönetildiği (iptal/plan değişikliği) mağaza sayfası.
+  ///
+  /// Abonelik iptali TAMAMEN mağazanın elindedir; uygulama içinden iptal
+  /// edilemez. Kullanıcıyı doğru sayfaya götürmemek, "iptal edemiyorum"
+  /// şikâyetlerinin ve iade taleplerinin en yaygın sebebi — App Store da
+  /// abonelik yönetimine erişimi bekler (3.1.2).
+  ///
+  /// (`dart:io` Platform DEĞİL — proje web'i de hedefliyor, orada derlenmez.)
+  static String get manageSubscriptionsUrl =>
+      (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+          ? 'https://apps.apple.com/account/subscriptions'
+          // Play'de paket adı verilmezse genel abonelik listesi açılır;
+          // vererek doğrudan bu uygulamanın aboneliğine gidiyoruz.
+          : 'https://play.google.com/store/account/subscriptions'
+              '?package=com.alper.rutin';
+
   /// Doğrulama adresi gerçekten yapılandırıldı mı.
   ///
   /// `false` iken satın alma doğrulanamaz; ağ hatası gibi görünen ama

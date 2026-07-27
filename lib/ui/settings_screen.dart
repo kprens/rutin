@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../ads.dart';
 import '../analytics.dart';
 import '../app_info.dart';
+import '../iap.dart';
 import '../l10n.dart';
 import '../legal.dart';
 import '../store.dart';
@@ -121,6 +122,25 @@ class SettingsScreen extends StatelessWidget {
                           'Download your habit history'),
                       () => Share.share(s.exportJson()),
                     ),
+                    // Abonelik yönetimi yalnızca Pro'su olana gösterilir —
+                    // hiç satın alma yapmamış kullanıcıya boş bir mağaza
+                    // sayfası açan satır göstermek kafa karıştırır.
+                    //
+                    // İptal uygulama içinden YAPILAMAZ (mağaza kontrolünde);
+                    // kullanıcıyı doğru sayfaya götürmemek "iptal edemiyorum"
+                    // şikâyetlerinin ve iadelerin en yaygın sebebidir.
+                    if (s.isPro) ...[
+                      _sep(),
+                      _linkRow(
+                        t('Aboneliği Yönet', 'Manage Subscription'),
+                        t('Planını değiştir veya iptal et',
+                            'Change your plan or cancel'),
+                        // openLegalUrl adı dar kalıyor ama işlevi genel:
+                        // harici bağlantıyı açar ve açılamazsa kullanıcıya
+                        // sessiz kalmak yerine bilgi verir.
+                        () => openLegalUrl(context, Iap.manageSubscriptionsUrl),
+                      ),
+                    ],
                   ],
                 ),
               ),
