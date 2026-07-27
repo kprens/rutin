@@ -16,13 +16,26 @@
                     <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
+                            <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="YRO-k0-Ey4"/>
                         </subviews>
-                        <!-- Android'deki launch_background.xml düzeltmesiyle aynı mantık:
-                             varsayılan Flutter placeholder logosu yerine düz, uygulamanın
-                             navy renginde bir arka plan (Store Connect'in "Launch image is
-                             set to the default placeholder icon" uyarısını da giderir). -->
+                        <!-- Arka plan uygulamanın navy'si (#02081B) — Android'deki
+                             splash_background ile birebir aynı renk.
+
+                             Ortadaki görsel, uygulama ikonunun yuvarlatılmış hâli:
+                             kullanıcı ikona dokunuyor ve aynı işareti görüyor, açılış
+                             kesintisiz hissettiriyor. contentMode="center" olduğu için
+                             görsel kendi doğal boyutunda (128pt) durur, esnetilmez.
+
+                             NOT: Buradaki LaunchImage asset'lerinin Flutter'ın şablonundan
+                             GERÇEKTEN farklı olması gerekiyor. Daha önce storyboard
+                             düzeltilmiş ama imageset'te şablonun 1x1 boş PNG'leri
+                             kalmıştı; `flutter build ipa` asset dosyalarına baktığı için
+                             "Launch image is set to the default placeholder icon"
+                             uyarısı sürüyordu. -->
                         <color key="backgroundColor" red="0.0078" green="0.0314" blue="0.1059" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
+                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="1a2-6s-vTC"/>
+                            <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="4X2-HB-R7a"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -32,5 +45,6 @@
         </scene>
     </scenes>
     <resources>
+        <image name="LaunchImage" width="128" height="128"/>
     </resources>
 </document>
