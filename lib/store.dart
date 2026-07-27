@@ -1009,7 +1009,21 @@ class AppState extends ChangeNotifier {
 
   // ---------- Checklist ----------
 
-  List<int> get todaysDone => doneByDate.putIfAbsent(todayKey(), () => []);
+  /// Bugün tamamlanan görev kimlikleri — YALNIZCA OKUMA.
+  ///
+  /// Kayıt yoksa değiştirilemez boş liste döner; haritaya kayıt EKLEMEZ.
+  /// Eskiden bu getter `putIfAbsent` ile bugünün anahtarını oluşturuyordu ve
+  /// `build()` içinden de okunduğu için çizim sırasında kalıcı state'i
+  /// değiştiriyordu. Yan etkisi iki sorun üretiyordu: hiçbir görev
+  /// yapılmayan günler için boş kayıtlar birikiyor ve bu boş kayıtlar
+  /// [dailyRollover]'daki 400 anahtarlık budama kotasını tüketerek gerçek
+  /// geçmişin erken silinmesine yol açıyordu.
+  ///
+  /// Yazmak için [_todaysDoneMut] kullanılır — niyet çağrı yerinde görünsün.
+  List<int> get todaysDone => doneByDate[todayKey()] ?? const <int>[];
+
+  /// Bugünün listesini YAZMAK için; gerekiyorsa oluşturur.
+  List<int> get _todaysDoneMut => doneByDate.putIfAbsent(todayKey(), () => []);
 
   /// Bugün geçerli görevler (güne özel görevler filtrelenir).
   List<TaskItem> get todaysTasks =>
@@ -1097,7 +1111,8 @@ class AppState extends ChangeNotifier {
   }
 
   void toggleTask(TaskItem task) {
-    final done = todaysDone;
+    // Yazma yolu: bugünün kaydı yoksa burada oluşturulur.
+    final done = _todaysDoneMut;
     if (done.contains(task.id)) {
       done.remove(task.id);
     } else {
@@ -1228,8 +1243,16 @@ class AppState extends ChangeNotifier {
   // gerçek ml toplamından yeniden HESAPLANIYOR (_recomputeWaterFromLog),
   // bu yüzden ekleme/kaldırma birbirinin birebir tersi — sapma imkansız.
 
-  /// Bugünün su kayıt defteri (en yeni önce).
+  /// Bugünün su kayıt defteri (en yeni önce) — YALNIZCA OKUMA.
+  ///
+  /// [todaysDone] ile aynı gerekçe: bu getter `build()` içinden okunuyor ve
+  /// `putIfAbsent` ile çizim sırasında kalıcı state'e boş kayıt yazıyordu.
+  /// Yazmak için [_todaysWaterLogMut] kullanılır.
   List<WaterLogEntry> get todaysWaterLog =>
+      waterLog[todayKey()] ?? const <WaterLogEntry>[];
+
+  /// Bugünün defterini YAZMAK için; gerekiyorsa oluşturur.
+  List<WaterLogEntry> get _todaysWaterLogMut =>
       waterLog.putIfAbsent(todayKey(), () => []);
 
   /// Bugün gerçekten içilen toplam su (ml) — kayıt defterinden toplanır.
@@ -1264,14 +1287,18 @@ class AppState extends ChangeNotifier {
     final now = DateTime.now();
     final time =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-    todaysWaterLog.insert(0, WaterLogEntry(ml: ml, time: time));
+    _todaysWaterLogMut.insert(0, WaterLogEntry(ml: ml, time: time));
     _recomputeWaterFromLog();
   }
 
   /// Bir su kaydını geri alır (kayıt defterinden çıkarır, sayaç deftere
   /// göre yeniden hesaplanır — eklemenin birebir tersi).
   void removeWaterLog(WaterLogEntry e) {
-    if (todaysWaterLog.remove(e)) {
+    // Doğrudan haritadan sil: kayıt yoksa silinecek bir şey de yoktur, o
+    // yüzden yalnızca silmek için boş kayıt OLUŞTURMA. ([todaysWaterLog]
+    // artık değiştirilemez sabit liste döndürebildiği için `remove` da
+    // orada çağrılamaz.)
+    if (waterLog[todayKey()]?.remove(e) ?? false) {
       _recomputeWaterFromLog();
     }
   }

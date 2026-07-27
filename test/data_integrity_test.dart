@@ -162,4 +162,45 @@ void main() {
       expect(Iap.kindOf('beklenmeyen_urun'), 'subscription');
     });
   });
+
+  // Okuma amaçlı getter'lar kalıcı state'i DEĞİŞTİRMEMELİ.
+  //
+  // `todaysDone` ve `todaysWaterLog` eskiden `putIfAbsent` ile bugünün
+  // anahtarını oluşturuyordu. Bu getter'lar `build()` içinden de okunduğu
+  // için çizim sırasında kalıcı veri yazılıyordu ve hiçbir şey yapılmayan
+  // günler için boş kayıtlar birikiyordu. Bu kayıtlar `dailyRollover`
+  // içindeki 400 anahtarlık budama kotasını tüketip GERÇEK geçmişin erken
+  // silinmesine yol açıyordu.
+  group('Getter yan etkisi — okumak kalıcı state yazmamalı', () {
+    test('todaysDone okumak doneByDate\'e boş kayıt EKLEMEZ', () {
+      final s = _stateWith(const LoadResult.missing());
+      expect(s.doneByDate, isEmpty);
+      s.todaysDone; // yalnızca okuma
+      expect(s.doneByDate, isEmpty,
+          reason: 'okuma, budama kotasını tüketen boş kayıt yaratmamalı');
+    });
+
+    test('todaysWaterLog okumak waterLog\'a boş kayıt EKLEMEZ', () {
+      final s = _stateWith(const LoadResult.missing());
+      expect(s.waterLog, isEmpty);
+      s.todaysWaterLog; // yalnızca okuma
+      expect(s.waterLog, isEmpty);
+    });
+
+    test('kayıt yokken okuma boş liste döner (null değil)', () {
+      final s = _stateWith(const LoadResult.missing());
+      expect(s.todaysDone, isEmpty);
+      expect(s.todaysWaterLog, isEmpty);
+      expect(s.todaysWaterMl, 0);
+    });
+
+    test('removeWaterLog hiç kayıt yokken çökmez ve harita boş kalır', () {
+      final s = _stateWith(const LoadResult.missing());
+      // Okuma getter'ı artık değiştirilemez sabit liste döndürebiliyor;
+      // silme yolu bu yüzden doğrudan haritadan geçmeli, aksi halde
+      // burada UnsupportedError fırlardı.
+      s.removeWaterLog(WaterLogEntry(ml: 250, time: '10:00'));
+      expect(s.waterLog, isEmpty);
+    });
+  });
 }
