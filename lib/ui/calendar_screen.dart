@@ -170,12 +170,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
         Text(t('Aktif Seriler', 'Active Streaks'), style: RText.title),
         const SizedBox(height: 12),
         if (streakHabits.isEmpty)
-          RCard(
-            border: RC.strokeSoft,
-            child: Text(
-                t('Henüz alışkanlık yok. Ana sayfadan ekle.',
-                    'No habits yet. Add some from Home.'),
-                style: TextStyle(color: RC.muted, height: 1.5)),
+          REmpty(
+            icon: Icons.event_available_rounded,
+            title: t('Henüz alışkanlık yok', 'No habits yet'),
+            message: t(
+                'Ana sayfadan bir alışkanlık ekle; serilerin burada listelenecek.',
+                'Add a habit from Home — your streaks will be listed here.'),
           )
         else
           ...streakHabits.map((h) => _streakRow(s, h)),

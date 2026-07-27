@@ -97,6 +97,21 @@ class AppState extends ChangeNotifier {
 
   // Retention
   bool onboarded = false;
+
+  /// Son okuma başarısız oldu mu (ağ/sunucu hatası).
+  ///
+  /// `true` iken ekranda görünen boşluk "veri yok" DEĞİL, "veriye şu an
+  /// ulaşılamıyor" demektir. Arayüz bu ikisini birbirinden ayırt edip
+  /// kullanıcıya doğru mesajı göstermeli (bkz. DataUnavailableBanner) —
+  /// aksi halde kullanıcı verisinin silindiğini sanır.
+  bool dataUnavailable = false;
+
+  /// Yükleme hatasından sonra kullanıcının "Tekrar dene" demesi için.
+  /// Başarılı olursa [dataUnavailable] kendiliğinden temizlenir.
+  Future<void> retryLoad() async {
+    await load();
+    notifyListeners();
+  }
   List<String> checklistFullDays = []; // listenin tamamlandığı günler
   Map<String, int> celebrated = {}; // streakId -> kutlanan son milestone
 
@@ -367,6 +382,15 @@ class AppState extends ChangeNotifier {
       reportError(e, st, op: 'state_load');
       result = const LoadResult.failure();
     }
+    // Okuma BAŞARISIZ mı, yoksa hesap gerçekten yeni mi?
+    //
+    // Bu ayrımı arayüze taşımak kritik: okuma başarısız olduğunda kullanıcı
+    // ekranda "alışkanlık yok" görür. 200 günlük serisi olan biri için bu,
+    // verisinin silindiği anlamına gelir — kategorideki en sık 1 yıldız
+    // sebebi tam olarak budur. Veri katmanı artık veriyi koruyor (bkz.
+    // repository.dart), ama sessiz kalmak paniği engellemiyor: kullanıcıya
+    // "verilerin duruyor, şu an ulaşamıyoruz" demek gerekiyor.
+    dataUnavailable = result.failed;
     _applyLoadedData(result.data);
     if (localeOverride != null) T.en = localeOverride == 'en';
     // Yeni veri yüklendi (veya hesap değişti) — eski hesabın/verinin seri

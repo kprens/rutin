@@ -11,6 +11,8 @@ library;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../l10n.dart';
+
 import '../theme.dart';
 
 /// ------------------------- RENK PALETİ -------------------------
@@ -468,6 +470,195 @@ class RSwitch extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Standart BOŞ DURUM.
+///
+/// Boş durumlar uygulamanın en çok ihmal edilen ekranlarıdır, oysa yeni
+/// kullanıcının ilk gördüğü şey tam olarak budur. Önceden her ekran bunu
+/// kendi başına çözüyordu: çoğu yerde tek satır gri metin, bazı yerlerde
+/// hiçbir şey. İki sorunu vardı — görsel olarak "bozuk/eksik" hissi
+/// veriyordu ve kullanıcıya NE YAPACAĞINI söylemiyordu.
+///
+/// Buradaki kurgu üç parçalı: ikon (ekranın boş değil, kasıtlı olduğunu
+/// gösterir), başlık + açıklama (ne olduğu ve neden), ve isteğe bağlı bir
+/// eylem butonu. Boş durum bir hata değil, bir davettir.
+class REmpty extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? message;
+
+  /// Eylem butonu — varsa kullanıcı ekrandan çıkmadan devam edebilir.
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  /// Dar alanlarda (kart içi) daha küçük bir varyant.
+  final bool compact;
+
+  const REmpty({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.message,
+    this.actionLabel,
+    this.onAction,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RCard(
+      color: RC.card,
+      border: RC.strokeSoft,
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: compact ? 8 : 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Dekoratif: anlamı alttaki başlık taşıyor, ekran okuyucunun
+            // ayrıca bir ikon düğümü okumasına gerek yok.
+            ExcludeSemantics(
+              child: Container(
+                width: compact ? 44 : 60,
+                height: compact ? 44 : 60,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: RC.card2,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: RC.stroke),
+                ),
+                child: Icon(icon,
+                    size: compact ? 22 : 28, color: RC.muted),
+              ),
+            ),
+            SizedBox(height: compact ? 10 : 16),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: RC.text,
+                    fontSize: compact ? 14 : 16,
+                    fontWeight: FontWeight.w700)),
+            if (message != null) ...[
+              const SizedBox(height: 6),
+              Text(message!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: RC.muted,
+                      fontSize: compact ? 12.5 : 13.5,
+                      height: 1.45)),
+            ],
+            if (actionLabel != null && onAction != null) ...[
+              SizedBox(height: compact ? 12 : 18),
+              RButton(actionLabel!, onTap: onAction, height: 44),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Standart HATA DURUMU — yeniden deneme imkânıyla.
+///
+/// "Bir şeyler ters gitti" deyip bırakmak kullanıcıyı çıkmaza sokar; her hata
+/// ekranı bir çıkış yolu sunmalı.
+class RError extends StatelessWidget {
+  final String title;
+  final String? message;
+  final VoidCallback? onRetry;
+
+  const RError({
+    super.key,
+    required this.title,
+    this.message,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) => REmpty(
+        icon: Icons.cloud_off_rounded,
+        title: title,
+        message: message,
+        actionLabel: onRetry == null ? null : t('Tekrar Dene', 'Try Again'),
+        onAction: onRetry,
+      );
+}
+
+/// VERİYE ULAŞILAMIYOR uyarısı.
+///
+/// NEDEN AYRI BİR BİLEŞEN: Yükleme başarısız olduğunda ekranda görünen
+/// boşluk, kullanıcı açısından "veri yok"tan ayırt edilemez. 200 günlük
+/// serisi olan biri uygulamayı açıp boş ekran görürse verisinin silindiğini
+/// düşünür — bu, kategorideki en sık 1 yıldız sebebidir ve kullanıcı
+/// genellikle uygulamayı silerek "çözer".
+///
+/// Bu şerit tam olarak şunu söyler: veri duruyor, sorun geçici, şu an
+/// yazdıkların kaybolmayacak. Mesajın tonu bilinçli olarak sakinleştirici.
+class DataUnavailableBanner extends StatelessWidget {
+  final VoidCallback? onRetry;
+  const DataUnavailableBanner({super.key, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: RCard(
+        color: Color.alphaBlend(RC.amber.withValues(alpha: 0.12), RC.card),
+        border: RC.amber.withValues(alpha: 0.4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: Icon(Icons.cloud_off_rounded,
+                  size: 20, color: RC.amber),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      t('Verilerine şu an ulaşılamıyor',
+                          "Can't reach your data right now"),
+                      style: TextStyle(
+                          color: RC.text,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(
+                      t('Verilerin silinmedi — bağlantı kurulunca geri gelecek. Bu sırada yaptığın değişiklikler cihazında saklanıyor.',
+                          "Your data isn't lost — it'll come back once you're connected. Changes you make now are saved on your device."),
+                      style: TextStyle(
+                          color: RC.muted, fontSize: 12.5, height: 1.45)),
+                  if (onRetry != null) ...[
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: onRetry,
+                      child: Semantics(
+                        button: true,
+                        label: t('Tekrar dene', 'Try again'),
+                        excludeSemantics: true,
+                        child: Container(
+                          // 44dp: dokunma hedefi minimumu.
+                          height: 44,
+                          alignment: Alignment.centerLeft,
+                          child: Text(t('Tekrar dene', 'Try again'),
+                              style: TextStyle(
+                                  color: RC.purpleBright,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13.5)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

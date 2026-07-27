@@ -49,6 +49,12 @@ class HomeScreen extends StatelessWidget {
 
     return RScreen(
       children: [
+        // Yükleme başarısız olduysa EN ÜSTTE uyar. Bu şerit olmadan kullanıcı
+        // yalnızca boş bir ana ekran görür ve verisinin silindiğini sanar —
+        // kategorideki en sık 1 yıldız sebebi budur.
+        if (s.dataUnavailable)
+          DataUnavailableBanner(onRetry: () => s.retryLoad()),
+
         // ---- Başlık ----
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,

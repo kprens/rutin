@@ -219,11 +219,12 @@ class _WaterScreenState extends State<WaterScreen> {
               Text(t("Bugünün Kaydı", "Today's Log"), style: RText.title),
               const SizedBox(height: 12),
               if (log.isEmpty)
-                RCard(
-                  border: RC.strokeSoft,
-                  child: Text(
-                      t('Henüz su eklemedin.', 'No water logged yet.'),
-                      style: TextStyle(color: RC.muted)),
+                REmpty(
+                  compact: true,
+                  icon: Icons.water_drop_outlined,
+                  title: t('Henüz su eklemedin', 'No water logged yet'),
+                  message: t('Yukarıdaki butonlarla ilk kaydını ekle.',
+                      'Use the buttons above to add your first entry.'),
                 )
               else
                 ...log.map((e) => Padding(

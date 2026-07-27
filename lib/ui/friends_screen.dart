@@ -411,12 +411,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 Text(t('Arkadaşların', 'Your Friends'), style: RText.title),
                 const SizedBox(height: 12),
                 if (friends.isEmpty && !s.friendsLoading)
-                  RCard(
-                    border: RC.strokeSoft,
-                    child: Text(
-                        t('Henüz arkadaşın yok. Yukarıdaki kodu paylaş ya da bir kod gir.',
-                            'No friends yet. Share your code above or enter one.'),
-                        style: TextStyle(color: RC.muted, height: 1.5)),
+                  REmpty(
+                    icon: Icons.group_outlined,
+                    title: t('Henüz arkadaşın yok', 'No friends yet'),
+                    message: t(
+                        'Yukarıdaki davet kodunu paylaş ya da bir arkadaşının kodunu gir.',
+                        "Share your invite code above, or enter a friend's code."),
                   )
                 else
                   ...friends.map((f) => _friendCard(context, s, f)),

@@ -74,12 +74,12 @@ class RecoveryScreen extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (s.streaks.isEmpty)
-          RCard(
-            border: RC.strokeSoft,
-            child: Text(
-                t('Henüz kayıt yok. Bırakmak istediğin bir alışkanlık ekle.',
-                    'No recoveries yet. Add a habit you want to quit.'),
-                style: TextStyle(color: RC.muted, height: 1.5)),
+          REmpty(
+            icon: Icons.spa_rounded,
+            title: t('Henüz bir bırakma kaydın yok', 'No recoveries yet'),
+            message: t(
+                'Bırakmak istediğin bir alışkanlık ekle; temiz günlerin ve kilometre taşların burada görünecek.',
+                "Add a habit you want to quit — your clean days and milestones will show up here."),
           )
         else
           ...s.streaks.map((r) => _recoveryCard(context, s, r)),
