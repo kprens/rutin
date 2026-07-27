@@ -119,6 +119,22 @@ class Iap extends ChangeNotifier {
   /// Mağazadan yüklenen ürünler (fiyat, başlık vb. yerelleştirilmiş).
   List<ProductDetails> products = [];
 
+  /// Ürün yükleme denemesi TAMAMLANDI mı (başarılı ya da başarısız).
+  ///
+  /// Arayüzün "hâlâ bekliyoruz" ile "denedik, ürün gelmedi" durumlarını
+  /// ayırt etmesi için şart. Bu bilgi olmadan paywall, mağaza hiç ürün
+  /// döndürmediğinde sonsuza kadar dönen bir yükleniyor göstergesinde
+  /// kalıyordu: kullanıcı satın alamıyor, neden olduğunu anlamıyor ve
+  /// zaten ödemiş biri "geri yükle"ye bile ulaşamıyordu.
+  bool productsLoadAttempted = false;
+
+  /// Mağazanın "böyle bir ürün yok" dediği kimlikler.
+  ///
+  /// Yapılandırma hatalarının tek teşhis ipucu budur: Product ID yanlış
+  /// yazıldıysa, ürün reddedilmiş durumdaysa ya da Paid Apps sözleşmesi
+  /// aktif değilse mağaza ürünü bulunamadı olarak döner.
+  List<String> notFoundIds = const [];
+
   /// Satın alma akışı sürüyor mu (buton kilidi için).
   bool purchasePending = false;
 
@@ -192,9 +208,25 @@ class Iap extends ChangeNotifier {
           .queryProductDetails(_ids)
           .timeout(const Duration(seconds: 5));
       products = resp.productDetails;
-    } catch (_) {
+      notFoundIds = resp.notFoundIDs;
+      // Mağaza cevap verdi ama HİÇ ürün yok: bu neredeyse her zaman bir
+      // yapılandırma hatasıdır (Paid Apps sözleşmesi aktif değil, Product
+      // ID uyuşmuyor, ürün reddedilmiş durumda). Kullanıcı satın alamaz,
+      // yani doğrudan gelir kaybı — sessiz kalmamalı.
+      if (products.isEmpty) {
+        reportError(
+          StateError('Mağaza hiç ürün döndürmedi'),
+          StackTrace.current,
+          op: 'iap_no_products',
+          tags: {'notFound': resp.notFoundIDs.join(',')},
+        );
+      }
+    } catch (e, st) {
       products = [];
+      notFoundIds = const [];
+      reportError(e, st, op: 'iap_load_products');
     }
+    productsLoadAttempted = true;
     notifyListeners();
   }
 
@@ -210,11 +242,25 @@ class Iap extends ChangeNotifier {
       available = false;
     }
     if (!available) {
+      // Mağaza katmanına hiç ulaşılamadı. Bu da tamamlanmış bir denemedir —
+      // aksi halde arayüz sonsuza kadar "yükleniyor" gösterir.
+      productsLoadAttempted = true;
       notifyListeners();
       return;
     }
     _sub ??= _iap.purchaseStream.listen(_onPurchases, onError: (Object _) {});
     await loadProducts();
+  }
+
+  /// Kullanıcının "tekrar dene" eylemi: durumu sıfırlayıp yeniden dener.
+  ///
+  /// [retryIfNeeded] ürünler zaten yüklüyse hiçbir şey yapmaz; burada ise
+  /// kullanıcı açıkça yeniden denemek istiyor, o yüzden deneme bayrağı
+  /// sıfırlanır ve arayüz tekrar "yükleniyor"a döner.
+  Future<void> retryProducts() async {
+    productsLoadAttempted = false;
+    notifyListeners();
+    await retryIfNeeded();
   }
 
   /// Aboneliği satın alma akışını başlatır. Sonuç purchaseStream'e düşer.

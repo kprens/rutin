@@ -199,19 +199,31 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     // gösterip satın almaya izin vermeyiz.
                     final ready = yearly != null && monthly != null;
                     if (!ready) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 28),
-                        child: Column(
-                          children: [
-                            CircularProgressIndicator(color: RC.purpleBright),
-                            const SizedBox(height: 16),
-                            Text(
-                                t('Planlar yükleniyor…', 'Loading plans…'),
-                                style:
-                                    TextStyle(color: RC.muted, fontSize: 14)),
-                          ],
-                        ),
-                      );
+                      // BEKLEME ile BAŞARISIZLIK farklı şeylerdir; eskiden
+                      // ikisi de aynı sonsuz "yükleniyor" göstergesine
+                      // düşüyordu. Mağaza hiç ürün döndürmediğinde ekran
+                      // sonsuza kadar dönüyor, kullanıcı satın alamıyor,
+                      // sebebini öğrenemiyor, zaten ödemişse "geri yükle"ye
+                      // ulaşamıyor ve ZORUNLU yasal bağlantılar hiç
+                      // görünmüyordu — App Store 3.1.2 bunları abonelik
+                      // sunulan ekranda şart koşuyor.
+                      if (!Iap.instance.productsLoadAttempted) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 28),
+                          child: Column(
+                            children: [
+                              CircularProgressIndicator(
+                                  color: RC.purpleBright),
+                              const SizedBox(height: 16),
+                              Text(
+                                  t('Planlar yükleniyor…', 'Loading plans…'),
+                                  style: TextStyle(
+                                      color: RC.muted, fontSize: 14)),
+                            ],
+                          ),
+                        );
+                      }
+                      return _plansUnavailable(context);
                     }
 
                     return Column(
@@ -387,6 +399,53 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   /// Gizlilik politikası + kullanım koşulları — abonelik satılan ekranda
   /// bulunması ZORUNLU (App Store 3.1.2). Uygulamada hiç yoktu.
+  /// Planlar mağazadan alınamadığında gösterilir.
+  ///
+  /// Üç şeyi mutlaka barındırır:
+  ///   1. Ne olduğunu söyleyen açık bir mesaj (sonsuz spinner yerine),
+  ///   2. "Tekrar Dene" — sorun geçiciyse kullanıcı ekrandan çıkmadan çözer,
+  ///   3. "Satın Alımları Geri Yükle" + yasal bağlantılar — ZATEN ödemiş
+  ///      kullanıcı burada kilitli kalmamalı ve App Store 3.1.2, abonelik
+  ///      sunulan ekranda bu bağlantıları şart koşuyor.
+  Widget _plansUnavailable(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          REmpty(
+            icon: Icons.cloud_off_rounded,
+            title: t('Planlar şu an yüklenemedi',
+                "Couldn't load the plans"),
+            message: t(
+                'Mağazaya ulaşılamıyor. İnternet bağlantını kontrol edip tekrar deneyebilirsin.',
+                "We can't reach the store. Check your connection and try again."),
+            actionLabel: t('Tekrar Dene', 'Try Again'),
+            onAction: () => Iap.instance.retryProducts(),
+          ),
+          const SizedBox(height: 18),
+          GestureDetector(
+            onTap: () {
+              _purchaseAttempted = true;
+              Analytics.instance
+                  .log(Ev.purchaseRestore, {'source': widget.source});
+              Iap.instance.restore();
+            },
+            child: Center(
+              child: Text(
+                  t('Satın Alımları Geri Yükle', 'Restore Purchases'),
+                  style: TextStyle(
+                      color: RC.muted,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _legalLinks(context),
+        ],
+      ),
+    );
+  }
+
   Widget _legalLinks(BuildContext context) {
     Widget link(String label, String url) => GestureDetector(
           onTap: () => openLegalUrl(context, url),
