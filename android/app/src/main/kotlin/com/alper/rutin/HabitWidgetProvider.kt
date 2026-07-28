@@ -44,49 +44,72 @@ class HabitWidgetProvider : HomeWidgetProvider() {
         widgetData: android.content.SharedPreferences
     ) {
         appWidgetIds.forEach { widgetId ->
-            val views = RemoteViews(context.packageName, R.layout.habit_widget)
-
-            val summary = widgetData.getString("rutin_widget_summary", "") ?: ""
-            views.setTextViewText(R.id.widget_summary, summary)
-
-            // Başlığa/boşluğa dokunmak uygulamayı açar.
-            val launchPending = HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java)
-            views.setOnClickPendingIntent(R.id.widget_title, launchPending)
-            views.setOnClickPendingIntent(R.id.widget_summary, launchPending)
-
-            val tasksJson = widgetData.getString("rutin_widget_tasks", null)
-            val tasks = try {
-                if (tasksJson != null) JSONArray(tasksJson) else JSONArray()
+            // Widget çizimi ASLA yayın alıcısını çökertmemeli.
+            //
+            // onUpdate'te fırlayan her istisna Android tarafından
+            // "RuntimeException: Unable to start receiver" olarak yüzeye
+            // çıkar; kullanıcı, uygulamayı hiç açmamışken çökme görür.
+            // Ana ekran widget'ı ikincil bir özellik — çizilemiyorsa
+            // sessizce atlanmalı, uygulamayı aşağı çekmemeli.
+            try {
+                renderWidget(context, appWidgetManager, widgetId, widgetData)
             } catch (e: Exception) {
-                JSONArray()
+                // Yutuluyor: bir sonraki güncelleme döngüsünde tekrar denenir.
             }
-
-            for (i in rowIds.indices) {
-                if (i < tasks.length()) {
-                    val task = tasks.getJSONObject(i)
-                    val id = task.optInt("id")
-                    val name = task.optString("name")
-                    val emoji = task.optString("emoji", "✅")
-                    val done = task.optBoolean("done", false)
-
-                    views.setViewVisibility(rowIds[i], android.view.View.VISIBLE)
-                    views.setTextViewText(emojiIds[i], emoji)
-                    views.setTextViewText(nameIds[i], name)
-                    views.setImageViewResource(
-                        checkIds[i],
-                        if (done) R.drawable.widget_check_on else R.drawable.widget_check_off
-                    )
-
-                    val togglePending = HomeWidgetBackgroundIntent.getBroadcast(
-                        context, android.net.Uri.parse("homeWidget://toggle?id=$id")
-                    )
-                    views.setOnClickPendingIntent(rowIds[i], togglePending)
-                } else {
-                    views.setViewVisibility(rowIds[i], android.view.View.GONE)
-                }
-            }
-
-            appWidgetManager.updateAppWidget(widgetId, views)
         }
+    }
+
+    private fun renderWidget(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        widgetId: Int,
+        widgetData: android.content.SharedPreferences
+    ) {
+        val views = RemoteViews(context.packageName, R.layout.habit_widget)
+
+        val summary = widgetData.getString("rutin_widget_summary", "") ?: ""
+        views.setTextViewText(R.id.widget_summary, summary)
+
+        // Başlığa/boşluğa dokunmak uygulamayı açar.
+        val launchPending = HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java)
+        views.setOnClickPendingIntent(R.id.widget_title, launchPending)
+        views.setOnClickPendingIntent(R.id.widget_summary, launchPending)
+
+        val tasksJson = widgetData.getString("rutin_widget_tasks", null)
+        val tasks = try {
+            if (tasksJson != null) JSONArray(tasksJson) else JSONArray()
+        } catch (e: Exception) {
+            JSONArray()
+        }
+
+        for (i in rowIds.indices) {
+            // optJSONObject: getJSONObject try bloğunun DIŞINDAYDI ve
+            // dizide nesne olmayan bir eleman varsa fırlatıp alıcıyı
+            // çökertiyordu. Bozuk eleman artık satırı gizletir, yeter.
+            val task = if (i < tasks.length()) tasks.optJSONObject(i) else null
+            if (task != null) {
+                val id = task.optInt("id")
+                val name = task.optString("name")
+                val emoji = task.optString("emoji", "✅")
+                val done = task.optBoolean("done", false)
+
+                views.setViewVisibility(rowIds[i], android.view.View.VISIBLE)
+                views.setTextViewText(emojiIds[i], emoji)
+                views.setTextViewText(nameIds[i], name)
+                views.setImageViewResource(
+                    checkIds[i],
+                    if (done) R.drawable.widget_check_on else R.drawable.widget_check_off
+                )
+
+                val togglePending = HomeWidgetBackgroundIntent.getBroadcast(
+                    context, android.net.Uri.parse("homeWidget://toggle?id=$id")
+                )
+                views.setOnClickPendingIntent(rowIds[i], togglePending)
+            } else {
+                views.setViewVisibility(rowIds[i], android.view.View.GONE)
+            }
+        }
+
+        appWidgetManager.updateAppWidget(widgetId, views)
     }
 }

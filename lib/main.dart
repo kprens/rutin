@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'ads.dart';
 import 'analytics.dart';
 import 'auth.dart' as auth;
+import 'diagnostics.dart';
 import 'home_widget_service.dart' as hw;
 import 'iap.dart';
 import 'l10n.dart';
@@ -181,14 +182,20 @@ Future<void> bootRutin() async {
   // için sorun görünmüyordu). Bu yüzden her adım bir timeout ile sınırlanır:
   // katman yanıt vermezse boot devam eder, uygulama (o oturumda veri/mağaza/
   // reklam olmadan da olsa) AÇILIR. `runApp`'e ulaşmak her şeyden önemlidir.
-  Future<void> runStep(Future<void> Function() step,
+  // [name] ZORUNLU: hangi adımın takıldığı raporda görünmeli.
+  //
+  // Önceden hata adsız raporlanıyordu; Sentry'de yalnızca
+  // "TimeoutException after 0:00:08 — bootRutin.runStep" görünüyordu ve
+  // bunun state.boot mu, Iap.init mi, Ads.init mi olduğu anlaşılamıyordu.
+  // Teşhis edilemeyen bir hata düzeltilemez.
+  Future<void> runStep(String name, Future<void> Function() step,
       {Duration limit = const Duration(seconds: 8)}) async {
     try {
       await step().timeout(limit);
     } catch (e, st) {
       // Zaman aşımı (TimeoutException) veya başka bir hata — her hâlükârda
-      // Sentry'ye raporla ve devam et; bir sonraki adım yine denenir.
-      unawaited(Sentry.captureException(e, stackTrace: st));
+      // raporla ve devam et; bir sonraki adım yine denenir.
+      reportError(e, st, op: 'boot_step', tags: {'step': name});
     }
   }
 
@@ -197,6 +204,7 @@ Future<void> bootRutin() async {
   // yine de runStep ile sınırlandırılıyor: ölçüm katmanı hiçbir koşulda
   // açılışı geciktiremez.
   await runStep(
+    'analytics_init',
     () => Analytics.instance.init(backendAvailable: auth.supabaseConfigured),
     limit: const Duration(seconds: 3),
   );
@@ -204,16 +212,16 @@ Future<void> bootRutin() async {
 
   // boot(): kalıcı bir Supabase oturumu varsa bulut deposunu kullanır
   // (gerekirse cihazdaki veriyi ilk kez buluta taşır); yoksa yereli kullanır.
-  await runStep(() => state.boot());
+  await runStep('state_boot', () => state.boot());
 
   // Uygulama içi satın alma — App Store / Play Billing. Mağazaya ulaşılamazsa
   // ya da Billing yanıt vermezse sessizce devre dışı kalır (paywall daha sonra
   // ürünleri tekrar yüklemeyi dener).
-  await runStep(() => Iap.instance.init(onPro: state.activatePro));
+  await runStep('iap_init', () => Iap.instance.init(onPro: state.activatePro));
 
   // AdMob — banner reklamlar yalnızca Pro olmayan kullanıcılara gösterilir
   // (bkz. ui/root_shell.dart).
-  await runStep(() => Ads.init());
+  await runStep('ads_init', () => Ads.init());
 
   runApp(
     ChangeNotifierProvider.value(value: state, child: const RutinApp()),
