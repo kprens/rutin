@@ -161,6 +161,16 @@ void main() {
     test('bilinmeyen ürün güvenli tarafa (abonelik) düşer', () {
       expect(Iap.kindOf('beklenmeyen_urun'), 'subscription');
     });
+
+    // iOS'ta aylık abonelik App Store Connect'te SONUNDA NOKTA olan bir
+    // kimlikle oluşturulmuş ve Apple Product ID değiştirmeye izin vermiyor.
+    // Her iki varyant da abonelik olarak doğrulanmalı; 'lifetime' yoluna
+    // düşerse makbuz yanlış uç noktaya sorulur ve satın alma açılmaz.
+    test('noktalı ve noktasız aylık kimlik de abonelik sayılır', () {
+      expect(Iap.kindOf('rutin_pro_monthly_v2.'), 'subscription');
+      expect(Iap.kindOf('rutin_pro_monthly_v2'), 'subscription');
+      expect(Iap.kindOf('rutin_pro_monthly'), 'subscription');
+    });
   });
 
   // Makbuz doğrulama adresi yapılandırılmadıysa bu, AĞ hatası gibi

@@ -39,10 +39,45 @@ class Iap extends ChangeNotifier {
   /// doğru tipte (otomatik yenilenen abonelik) ve etkin bir temel planla zaten
   /// tanımlı. Android'de yanma yaşanmadığı için orijinal kimlik korunur;
   /// böylece Play tarafında yeni bir abonelik oluşturmaya gerek kalmaz.
-  static String get monthlyId =>
-      (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
-          ? 'rutin_pro_monthly_v2'
-          : 'rutin_pro_monthly';
+  /// iOS'ta aylık abonelik App Store Connect'te SONUNDA NOKTA olan bir
+  /// kimlikle oluşturulmuş: `rutin_pro_monthly_v2.`
+  ///
+  /// Apple bir Product ID'yi oluşturduktan sonra değiştirmeye izin vermez,
+  /// silinen kimliği de bir daha kullanıma açmaz. Yani noktayı mağaza
+  /// tarafında düzeltmek mümkün değil; kodun mağazaya uyması gerekiyor.
+  ///
+  /// Tek bir değere sabitlemek yerine İKİ varyant da sorgulanıyor ve
+  /// mağaza hangisini döndürürse o kullanılıyor: kimlik ileride düzgün
+  /// olanla yeniden oluşturulursa kod kendiliğinden ona geçer, iki mağaza
+  /// durumunda da çalışır.
+  static const List<String> _iosMonthlyCandidates = [
+    'rutin_pro_monthly_v2.',
+    'rutin_pro_monthly_v2',
+  ];
+
+  static const String _androidMonthlyId = 'rutin_pro_monthly';
+
+  static bool get _isIos =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Mağazadan gerçekten dönen aylık kimlik. Ürünler yüklenene kadar ilk
+  /// aday; yükleme sonrası [_resolveMonthlyId] gerçekleşeni yazar.
+  static String _monthlyId =
+      _isIos ? _iosMonthlyCandidates.first : _androidMonthlyId;
+
+  static String get monthlyId => _monthlyId;
+
+  /// Mağazadan dönen ürünlere bakıp hangi aylık kimliğin geçerli olduğunu
+  /// belirler. Hiçbiri gelmediyse mevcut değer korunur.
+  static void _resolveMonthlyId(List<ProductDetails> loaded) {
+    if (!_isIos) return;
+    for (final candidate in _iosMonthlyCandidates) {
+      if (loaded.any((p) => p.id == candidate)) {
+        _monthlyId = candidate;
+        return;
+      }
+    }
+  }
 
   static const String yearlyId = 'rutin_pro_yearly';
 
@@ -55,8 +90,16 @@ class Iap extends ChangeNotifier {
   /// otomatik olarak gizlenir (bkz. paywall_screen.dart).
   static const String lifetimeId = 'rutin_pro_lifetime';
 
-  // monthlyId platforma bağlı bir getter olduğu için _ids const olamaz.
-  static Set<String> get _ids => {monthlyId, yearlyId, lifetimeId};
+  // monthlyId platforma bağlı olduğu için _ids const olamaz.
+  //
+  // iOS'ta aylık kimliğin İKİ varyantı da sorgulanır (bkz.
+  // _iosMonthlyCandidates); mağaza hangisini tanıyorsa onu döndürür,
+  // tanımadığı notFoundIDs'e düşer ve diğer ürünleri etkilemez.
+  static Set<String> get _ids => {
+        if (_isIos) ..._iosMonthlyCandidates else _androidMonthlyId,
+        yearlyId,
+        lifetimeId,
+      };
 
   /// Bir ürün kimliğinin doğrulama tipi: `'lifetime'` (tek seferlik,
   /// non-consumable) ya da `'subscription'` (otomatik yenilenen).
@@ -209,6 +252,9 @@ class Iap extends ChangeNotifier {
           .timeout(const Duration(seconds: 5));
       products = resp.productDetails;
       notFoundIds = resp.notFoundIDs;
+      // Aylık kimliğin hangi varyantının geçerli olduğunu mağazanın
+      // cevabından öğren (bkz. _iosMonthlyCandidates).
+      _resolveMonthlyId(products);
       // Mağaza cevap verdi ama HİÇ ürün yok: bu neredeyse her zaman bir
       // yapılandırma hatasıdır (Paid Apps sözleşmesi aktif değil, Product
       // ID uyuşmuyor, ürün reddedilmiş durumda). Kullanıcı satın alamaz,
