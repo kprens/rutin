@@ -50,7 +50,22 @@ class NotificationService {
     // kaynak adıyla veriliyor.
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('ic_notification'),
-      iOS: DarwinInitializationSettings(),
+      // İzinleri BURADA isteme.
+      //
+      // DarwinInitializationSettings'in varsayılanları üç izni de `true`
+      // yapar; yani `initialize()` çağrısı iOS'ta bildirim iznini AÇILIŞTA
+      // sorar. Bu, izni onboarding sonrasına taşıma kararını (bkz.
+      // store.dart → _requestNotificationsAfterOnboarding) sessizce boşa
+      // çıkarıyordu: kullanıcı uygulamayı görmeden, bağlamsız bir istem
+      // alıyordu — iPad'de splash ekranının üstünde doğrulandı.
+      //
+      // Bağlamsız sorulan izin çok daha sık reddedilir ve iOS aynı istemi
+      // BİR DAHA göstermez; reddedilen kullanıcı hatırlatma alamaz.
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
     );
     await _plugin.initialize(settings);
   }
