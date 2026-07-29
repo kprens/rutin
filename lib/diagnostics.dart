@@ -27,6 +27,36 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 ///
 /// Bu fonksiyon hiçbir koşulda fırlatmaz ve çağıranı bekletmez: teşhis
 /// katmanı, teşhis etmeye çalıştığı akışı bozamaz.
+/// Cihazın çevrimdışı olmasından kaynaklanan, BEKLENEN bir hata mı.
+///
+/// Bunlar arıza değil, uygulamanın zaten öngördüğü durumdur: bulut okunamaz,
+/// yerel önbelleğe düşülür, veri güvendedir ve kullanıcıya
+/// [AppState.dataUnavailable] üzerinden bilgi verilir.
+///
+/// Neden filtreleniyor: metroya giren tek bir kullanıcı, her okuma/yazma
+/// denemesinde bir Sentry olayı üretiyordu. Bu gürültü GERÇEK arızaları
+/// (satın alma doğrulaması patlaması, veri bozulması) görünmez hale getirir.
+/// Gözlemlenebilirlikte asıl mesele olay toplamak değil, sinyali korumaktır.
+///
+/// `dart:io`'ya BAĞLANMAZ (`error is SocketException` yazılamaz): bu proje
+/// web'i de hedefliyor ve orada `dart:io` derlenmez. Bu yüzden tip yerine
+/// mesaj eşleştirmesi yapılıyor — kırılgan ama taşınabilir.
+///
+/// [TimeoutException] BİLEREK dışarıda: açılış adımlarının zaman aşımına
+/// uğraması (bkz. main.dart → runStep, `boot_step` etiketi) gerçek bir teşhis
+/// sinyalidir, çevrimdışılık değil. Onu susturmak asıl aradığımız bilgiyi
+/// yok ederdi.
+bool isOfflineError(Object error) {
+  final s = error.toString();
+  return s.contains('SocketException') ||
+      s.contains('Failed host lookup') ||
+      s.contains('No address associated with hostname') ||
+      s.contains('Network is unreachable') ||
+      s.contains('Connection refused') ||
+      s.contains('Connection reset by peer') ||
+      s.contains('Connection closed before full header was received');
+}
+
 void reportError(
   Object error,
   StackTrace? stack, {
@@ -36,6 +66,22 @@ void reportError(
   // Debug'da konsola yaz — geliştirirken Sentry'ye gitmesine gerek yok.
   if (kDebugMode) {
     debugPrint('[$op] $error');
+  }
+  // Çevrimdışılık olay değil, İZ (breadcrumb) olarak kaydedilir.
+  //
+  // Tamamen yok saymıyoruz: sonradan gerçek bir hata raporlanırsa, izlerde
+  // "o sırada ağ yoktu" bilgisi görünür ve teşhisi kolaylaştırır.
+  if (isOfflineError(error)) {
+    try {
+      unawaited(Sentry.addBreadcrumb(Breadcrumb(
+        category: 'network',
+        message: 'offline · $op',
+        level: SentryLevel.info,
+      )));
+    } catch (_) {
+      // Sentry yoksa sessizce geç.
+    }
+    return;
   }
   try {
     // DSN verilmemişse Sentry başlatılmamıştır; bu çağrı sessizce no-op olur.

@@ -165,3 +165,49 @@ private yapılırsa macOS dakikaları Linux'un 10 katı sayılır — o durumda 
 yalnızca `main` ve PR'larda çalışacak şekilde daraltılması gerekebilir.
 
 **Durum:** ✅ Düzeltildi
+
+---
+
+## [DEVOPS-004] P2 · devops · Çevrimdışılık artık olay değil, iz (breadcrumb)
+
+**Kaynak:** Faz 4 sırasında kullanıcının ilettiği canlı Sentry olayı.
+
+```
+ClientException with SocketException: Failed host lookup:
+'pfgljdvkmkqvlvdljvjk.supabase.co' (OS Error: No address associated
+with hostname, errno = 7)
+  → postgrest_builder.dart _executeWithRetry
+  → op: cloud_load  (lib/repository.dart:125)
+```
+
+**Bu bir hata DEĞİL.** `errno = 7` DNS çözülememesi, yani cihaz çevrimdışı.
+Uygulama bunu zaten doğru işliyor: yerel önbelleğe düşüyor, veri güvende,
+kullanıcıya `AppState.dataUnavailable` şeridiyle bilgi veriliyor.
+
+**Sorun gözlemlenebilirlikte:** Metroya giren tek bir kullanıcı her okuma/yazma
+denemesinde bir Sentry olayı üretiyordu. Bu gürültü, gerçek arızaları (satın
+alma doğrulaması patlaması, veri bozulması) görünmez hale getirir. Olay
+toplamak amaç değil; sinyali korumak amaç.
+
+**Değişiklik — `lib/diagnostics.dart`:**
+- `isOfflineError()` eklendi; çevrimdışı hatalar `Sentry.addBreadcrumb` ile
+  **iz** olarak kaydediliyor, olay üretilmiyor
+- Tamamen yok sayılmıyor: sonradan gerçek bir hata raporlanırsa izlerde
+  "o sırada ağ yoktu" görünür ve teşhisi kolaylaştırır
+
+**İki bilinçli karar:**
+1. **`TimeoutException` hariç tutuldu.** Açılış adımı zaman aşımları
+   (`boot_step` etiketi, Sentry'de 20 olay) gerçek bir teşhis sinyali —
+   çevrimdışılık değil. Onu susturmak aradığımız bilgiyi yok ederdi.
+2. **`dart:io`'ya bağlanılmadı** (`error is SocketException` yazılamadı):
+   proje web'i de hedefliyor, orada `dart:io` derlenmez. Tip yerine mesaj
+   eşleştirmesi yapıldı — kırılgan ama taşınabilir; ödünleşim yorumda yazılı.
+
+**Doğrulama:**
+- 5 yeni test — sahadan gelen **gerçek olay metniyle** birebir
+- `TimeoutException` ve gerçek uygulama hatalarının filtrelenMEdiği ayrıca test edildi
+- `flutter analyze --fatal-warnings` → **0 hata / 0 uyarı / 0 info**
+- `flutter test` → **71/71** (öncesi 66)
+- Regresyon: 13 `op` etiketinin tamamı çalışır durumda
+
+**Durum:** ✅ Düzeltildi

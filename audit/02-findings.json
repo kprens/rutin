@@ -9,7 +9,13 @@
       "line_coverage_instrumented": 20.3,
       "outdated_packages": 21
     },
-    "counts": { "P0": 0, "P1": 2, "P2": 6, "P3": 5, "total": 13 }
+    "counts": {
+      "P0": 0,
+      "P1": 2,
+      "P2": 7,
+      "P3": 5,
+      "total": 14
+    }
   },
   "findings": [
     {
@@ -18,8 +24,16 @@
       "severity": "P1",
       "title": "Arka plan izolatında korumasız cast — widget dokunuşu sessizce başarısız oluyor",
       "evidence": [
-        {"file": "lib/home_widget_service.dart", "line": 148, "snippet": "final m = item as Map<String, dynamic>;"},
-        {"file": "lib/home_widget_service.dart", "line": 112, "snippet": "final id = idRaw is int ? idRaw : int.tryParse('$idRaw');  // AYNI dosyadaki GÜVENLİ yazım"}
+        {
+          "file": "lib/home_widget_service.dart",
+          "line": 148,
+          "snippet": "final m = item as Map<String, dynamic>;"
+        },
+        {
+          "file": "lib/home_widget_service.dart",
+          "line": 112,
+          "snippet": "final id = idRaw is int ? idRaw : int.tryParse('$idRaw');  // AYNI dosyadaki GÜVENLİ yazım"
+        }
       ],
       "why": "jsonDecode satır 141-145'te try ile korunuyor ama dizinin ELEMANLARI üzerindeki cast korumasız. Dizide nesne olmayan tek bir eleman TypeError fırlatır. Aynı dosyanın 112. satırında aynı desen tip kontrollü yazılmış — yani bu bilinçli bir tercih değil, gözden kaçma.",
       "impact": "backgroundCallback AYRI bir Flutter izolatında çalışır; üstünde yakalayıcı yoktur (karşılaştırma: friends.dart'taki benzer cast'lar store.dart:151-172 tarafından yakalanıyor, orada sorun yok). Hata yutulmaz, widget dokunuşu işlenmez ve kullanıcı neden olduğunu anlamaz.",
@@ -27,7 +41,9 @@
       "fix": "Elemanı cast etmeden önce tip kontrolü yap (112. satırdaki desenin aynısı) ve uymayan elemanı atla.",
       "effort": "S",
       "risk_of_fix": "low",
-      "blast_radius": ["lib/home_widget_service.dart"],
+      "blast_radius": [
+        "lib/home_widget_service.dart"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -37,8 +53,16 @@
       "severity": "P1",
       "title": "Test kapsamı düşük; gelir ve navigasyon yolları test edilmiyor",
       "evidence": [
-        {"file": "coverage/lcov.info", "line": 0, "snippet": "LF toplam 1845 / LH 375 = %20,3 (yalnızca testlerin YÜKLEDİĞİ dosyalar)"},
-        {"file": "test/", "line": 0, "snippet": "4 test dosyası: data_integrity, widget_test, accessibility, analytics, diagnostics"}
+        {
+          "file": "coverage/lcov.info",
+          "line": 0,
+          "snippet": "LF toplam 1845 / LH 375 = %20,3 (yalnızca testlerin YÜKLEDİĞİ dosyalar)"
+        },
+        {
+          "file": "test/",
+          "line": 0,
+          "snippet": "4 test dosyası: data_integrity, widget_test, accessibility, analytics, diagnostics"
+        }
       ],
       "why": "16.087 satırlık kod tabanında lcov yalnızca 1845 satırı görüyor; proje geneli gerçek kapsam %20,3'ün belirgin altında. Satın alma akışı, ekran davranışları ve navigasyon testsiz.",
       "impact": "Bu oturumda tam olarak bu boşluktan kaynaklanan iki hata bulundu: paywall'ın sonsuz yükleme çıkmazı ve home_logic modülünün üretimde hiç kullanılmaması (testler yeşil olduğu hâlde). Testler yanlış güven veriyor.",
@@ -46,7 +70,9 @@
       "fix": "Öncelik sırasıyla: Iap ürün çözümleme, paywall durum makinesi (yükleniyor/hata/hazır), store.dart gün dönümü ve budama mantığı.",
       "effort": "L",
       "risk_of_fix": "low",
-      "blast_radius": ["test/"],
+      "blast_radius": [
+        "test/"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -56,8 +82,16 @@
       "severity": "P2",
       "title": "Makbuz doğrulama uç noktası kimlik doğrulamasız ve makbuz kullanıcıya bağlanmıyor",
       "evidence": [
-        {"file": "supabase/functions/verify-receipt/index.ts", "line": 8, "snippet": "supabase functions deploy verify-receipt --no-verify-jwt"},
-        {"file": "supabase/functions/verify-receipt/index.ts", "line": 54, "snippet": "Deno.serve(async (req) => { ... body = await req.json();"}
+        {
+          "file": "supabase/functions/verify-receipt/index.ts",
+          "line": 8,
+          "snippet": "supabase functions deploy verify-receipt --no-verify-jwt"
+        },
+        {
+          "file": "supabase/functions/verify-receipt/index.ts",
+          "line": 54,
+          "snippet": "Deno.serve(async (req) => { ... body = await req.json();"
+        }
       ],
       "why": "Uç nokta Authorization başlığı olmadan çağrılıyor ve gövdedeki makbuzu hiçbir kullanıcı kimliğine bağlamıyor.",
       "impact": "Önceki denetim (AUDIT.md S-01) bunu 'replay ile Pro açılabilir' diye tanımlamış. Kodu okuyunca şiddet DAHA DÜŞÜK çıkıyor: uç nokta yalnızca {valid} döndürüyor, Pro'yu istemci açıyor — yani sunucuda çalınacak bir hak yok. Gerçek risk, uç noktanın Apple/Google API'lerine ücretsiz vekil olarak kötüye kullanılması.",
@@ -65,7 +99,10 @@
       "fix": "Kalıcı çözüm mimari: makbuzu kullanıcıya bağlayıp entitlement'ı sunucuda tutmak. Ara adım: uç noktaya oran sınırı.",
       "effort": "L",
       "risk_of_fix": "high",
-      "blast_radius": ["supabase/functions/verify-receipt/index.ts", "lib/iap.dart"],
+      "blast_radius": [
+        "supabase/functions/verify-receipt/index.ts",
+        "lib/iap.dart"
+      ],
       "confidence": "medium",
       "status": "open"
     },
@@ -75,8 +112,16 @@
       "severity": "P2",
       "title": "21 bağımlılık eski; 7 eklenti KGP kullanıyor — gelecek Flutter sürümünde Android derlemesi kırılacak",
       "evidence": [
-        {"file": "pubspec.lock", "line": 0, "snippet": "flutter pub outdated: 21 dependencies are constrained to versions older than a resolvable version"},
-        {"file": "android/", "line": 0, "snippet": "Build uyarısı: 'Future versions of Flutter will fail to build if your app uses plugins that apply KGP' — flutter_timezone, home_widget, in_app_review, package_info_plus, sentry_flutter, share_plus, sign_in_with_apple"}
+        {
+          "file": "pubspec.lock",
+          "line": 0,
+          "snippet": "flutter pub outdated: 21 dependencies are constrained to versions older than a resolvable version"
+        },
+        {
+          "file": "android/",
+          "line": 0,
+          "snippet": "Build uyarısı: 'Future versions of Flutter will fail to build if your app uses plugins that apply KGP' — flutter_timezone, home_widget, in_app_review, package_info_plus, sentry_flutter, share_plus, sign_in_with_apple"
+        }
       ],
       "why": "Eklentiler Kotlin Gradle Plugin uygulamaya devam ediyor; Flutter bunu kaldırmayı planlıyor.",
       "impact": "Bugün derleme çalışıyor. Bir sonraki Flutter yükseltmesinde Android derlemesi tamamen kırılabilir ve sebep kendi kodunuz değil bağımlılıklar olur.",
@@ -84,7 +129,11 @@
       "fix": "Eklentileri tek tek yükseltip her adımda test çalıştırmak.",
       "effort": "L",
       "risk_of_fix": "high",
-      "blast_radius": ["pubspec.yaml", "pubspec.lock", "android/"],
+      "blast_radius": [
+        "pubspec.yaml",
+        "pubspec.lock",
+        "android/"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -94,9 +143,21 @@
       "severity": "P2",
       "title": "CI'da bağımlılık/güvenlik denetimi ve iOS derlemesi yok",
       "evidence": [
-        {"file": ".github/workflows/ci.yml", "line": 34, "snippet": "jobs: analyze-and-test (Analiz + Test)"},
-        {"file": ".github/workflows/ci.yml", "line": 64, "snippet": "Android derleme — iOS için karşılığı YOK"},
-        {"file": ".github/workflows/ci.yml", "line": 0, "snippet": "grep audit|outdated|codeql|snyk|trivy -> eşleşme yok"}
+        {
+          "file": ".github/workflows/ci.yml",
+          "line": 34,
+          "snippet": "jobs: analyze-and-test (Analiz + Test)"
+        },
+        {
+          "file": ".github/workflows/ci.yml",
+          "line": 64,
+          "snippet": "Android derleme — iOS için karşılığı YOK"
+        },
+        {
+          "file": ".github/workflows/ci.yml",
+          "line": 0,
+          "snippet": "grep audit|outdated|codeql|snyk|trivy -> eşleşme yok"
+        }
       ],
       "why": "Pipeline yalnızca analiz, test ve Android debug derlemesi yapıyor.",
       "impact": "iOS derlemesini kıran bir değişiklik CI'dan yeşil geçer — bu proje iOS'ta yayınlanıyor. Bağımlılık zafiyetleri de hiç taranmıyor.",
@@ -104,7 +165,9 @@
       "fix": "iOS derleme işi (macos runner, --no-codesign) + `flutter pub outdated` raporlayan bir adım.",
       "effort": "M",
       "risk_of_fix": "low",
-      "blast_radius": [".github/workflows/ci.yml"],
+      "blast_radius": [
+        ".github/workflows/ci.yml"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -114,7 +177,11 @@
       "severity": "P2",
       "title": "store.dart God class — 1489 satır, 23 dosya tarafından import ediliyor",
       "evidence": [
-        {"file": "lib/store.dart", "line": 1, "snippet": "1489 satır: durum + kalıcılık + IAP köprüsü + arkadaşlar + su + takvim + bildirim + hesap"}
+        {
+          "file": "lib/store.dart",
+          "line": 1,
+          "snippet": "1489 satır: durum + kalıcılık + IAP köprüsü + arkadaşlar + su + takvim + bildirim + hesap"
+        }
       ],
       "why": "Tek sınıf birbirinden bağımsız sekiz sorumluluğu taşıyor; fan-in 23.",
       "impact": "Her değişiklik 23 dosyayı etkileme potansiyeli taşır; test edilebilirliği düşürür (TEST-001'in kökeni).",
@@ -122,7 +189,10 @@
       "fix": "Sorumluluk bazlı modüllere ayırma (water, friends, calendar, notifications).",
       "effort": "L",
       "risk_of_fix": "high",
-      "blast_radius": ["lib/store.dart", "+23 dosya"],
+      "blast_radius": [
+        "lib/store.dart",
+        "+23 dosya"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -132,10 +202,26 @@
       "severity": "P2",
       "title": "Altı build() metodu 200 satırın üzerinde",
       "evidence": [
-        {"file": "lib/ui/friends_screen.dart", "line": 114, "snippet": "build() ~323 satır"},
-        {"file": "lib/ui/paywall_screen.dart", "line": 112, "snippet": "build() ~264 satır"},
-        {"file": "lib/ui/water_screen.dart", "line": 25, "snippet": "build() ~242 satır"},
-        {"file": "lib/ui/home_screen.dart", "line": 20, "snippet": "build() ~235 satır"}
+        {
+          "file": "lib/ui/friends_screen.dart",
+          "line": 114,
+          "snippet": "build() ~323 satır"
+        },
+        {
+          "file": "lib/ui/paywall_screen.dart",
+          "line": 112,
+          "snippet": "build() ~264 satır"
+        },
+        {
+          "file": "lib/ui/water_screen.dart",
+          "line": 25,
+          "snippet": "build() ~242 satır"
+        },
+        {
+          "file": "lib/ui/home_screen.dart",
+          "line": 20,
+          "snippet": "build() ~235 satır"
+        }
       ],
       "why": "Toplam 49 fonksiyon 50 satırın üzerinde.",
       "impact": "Okunabilirlik ve widget bazlı test yazma zorluğu; gereksiz yeniden çizim riskini de artırır.",
@@ -143,7 +229,9 @@
       "fix": "Alt widget'lara ayırma.",
       "effort": "L",
       "risk_of_fix": "medium",
-      "blast_radius": ["lib/ui/"],
+      "blast_radius": [
+        "lib/ui/"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -153,8 +241,16 @@
       "severity": "P2",
       "title": "Paylaşılan bileşen bir ekran dosyasında; 8 ekran su ekranını import ediyor",
       "evidence": [
-        {"file": "lib/ui/water_screen.dart", "line": 329, "snippet": "Widget rutinAppBar(BuildContext context, String title) => _appBar(context, title);"},
-        {"file": "lib/ui/paywall_screen.dart", "line": 0, "snippet": "import 'water_screen.dart' show rutinAppBar;  (+7 ekran daha)"}
+        {
+          "file": "lib/ui/water_screen.dart",
+          "line": 329,
+          "snippet": "Widget rutinAppBar(BuildContext context, String title) => _appBar(context, title);"
+        },
+        {
+          "file": "lib/ui/paywall_screen.dart",
+          "line": 0,
+          "snippet": "import 'water_screen.dart' show rutinAppBar;  (+7 ekran daha)"
+        }
       ],
       "why": "Paylaşılan UI'nin yeri rutin_ui.dart (UI kit).",
       "impact": "Satın alma ekranı dâhil 8 ekran, su takip ekranının bağımlılıklarını sürüklüyor. Katman ihlali.",
@@ -162,7 +258,11 @@
       "fix": "rutinAppBar'ı rutin_ui.dart'a taşı, 8 importu güncelle.",
       "effort": "S",
       "risk_of_fix": "low",
-      "blast_radius": ["lib/ui/rutin_ui.dart", "lib/ui/water_screen.dart", "+8 ekran"],
+      "blast_radius": [
+        "lib/ui/rutin_ui.dart",
+        "lib/ui/water_screen.dart",
+        "+8 ekran"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -172,9 +272,21 @@
       "severity": "P3",
       "title": "Üç dairesel bağımlılık döngüsü",
       "evidence": [
-        {"file": "lib/store.dart", "line": 14, "snippet": "import 'home_widget_service.dart' as hw;"},
-        {"file": "lib/home_widget_service.dart", "line": 30, "snippet": "import 'store.dart';"},
-        {"file": "lib/ui/profile_screen.dart", "line": 17, "snippet": "import 'onboarding_screen.dart';  // onboarding->auth->root_shell->profile döngüsünü kapatıyor"}
+        {
+          "file": "lib/store.dart",
+          "line": 14,
+          "snippet": "import 'home_widget_service.dart' as hw;"
+        },
+        {
+          "file": "lib/home_widget_service.dart",
+          "line": 30,
+          "snippet": "import 'store.dart';"
+        },
+        {
+          "file": "lib/ui/profile_screen.dart",
+          "line": 17,
+          "snippet": "import 'onboarding_screen.dart';  // onboarding->auth->root_shell->profile döngüsünü kapatıyor"
+        }
       ],
       "why": "Servis↔durum ve ekranlar arası navigasyon döngüsel.",
       "impact": "Derleme hatası değil; sorumluluk sınırlarını bulanıklaştırır, akış değişikliğini n dosyaya yayar.",
@@ -182,7 +294,10 @@
       "fix": "Navigasyonu merkezî bir yönlendiriciye taşımak; hw çağrısını store'dan callback ile tersine çevirmek.",
       "effort": "M",
       "risk_of_fix": "medium",
-      "blast_radius": ["lib/ui/", "lib/store.dart"],
+      "blast_radius": [
+        "lib/ui/",
+        "lib/store.dart"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -192,7 +307,11 @@
       "severity": "P3",
       "title": "CI push tetikleyicisi yalnızca iki dalı kapsıyor",
       "evidence": [
-        {"file": ".github/workflows/ci.yml", "line": 15, "snippet": "branches: [main, theme-update]"}
+        {
+          "file": ".github/workflows/ci.yml",
+          "line": 15,
+          "snippet": "branches: [main, theme-update]"
+        }
       ],
       "why": "Özellik dallarına push CI çalıştırmıyor (PR açılırsa çalışıyor).",
       "impact": "Bu denetim dalına yapılan pushlar da CI'dan geçmiyor; geri bildirim PR'a kadar gecikiyor.",
@@ -200,7 +319,9 @@
       "fix": "branches listesini genişletmek ya da kaldırmak.",
       "effort": "S",
       "risk_of_fix": "low",
-      "blast_radius": [".github/workflows/ci.yml"],
+      "blast_radius": [
+        ".github/workflows/ci.yml"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -210,7 +331,11 @@
       "severity": "P3",
       "title": "Kullanılmayan RError bileşeni",
       "evidence": [
-        {"file": "lib/ui/rutin_ui.dart", "line": 565, "snippet": "class RError — tanımlı, hiçbir yerde çağrılmıyor"}
+        {
+          "file": "lib/ui/rutin_ui.dart",
+          "line": 565,
+          "snippet": "class RError — tanımlı, hiçbir yerde çağrılmıyor"
+        }
       ],
       "why": "UI kit bileşeni yazılmış ama benimsenmemiş.",
       "impact": "Ölü kod; analyzer public olduğu için uyarmıyor.",
@@ -218,7 +343,9 @@
       "fix": "Ya hata durumlarında kullan ya da kaldır.",
       "effort": "S",
       "risk_of_fix": "low",
-      "blast_radius": ["lib/ui/rutin_ui.dart"],
+      "blast_radius": [
+        "lib/ui/rutin_ui.dart"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -228,8 +355,16 @@
       "severity": "P3",
       "title": "Tek ekran eski klasör düzeninde kalmış",
       "evidence": [
-        {"file": "lib/screens/themes_screen.dart", "line": 1, "snippet": "diğer 20 ekran lib/ui/ altında"},
-        {"file": "lib/ui/settings_screen.dart", "line": 16, "snippet": "import '../screens/themes_screen.dart';"}
+        {
+          "file": "lib/screens/themes_screen.dart",
+          "line": 1,
+          "snippet": "diğer 20 ekran lib/ui/ altında"
+        },
+        {
+          "file": "lib/ui/settings_screen.dart",
+          "line": 16,
+          "snippet": "import '../screens/themes_screen.dart';"
+        }
       ],
       "why": "Refactor sırasında taşınmamış.",
       "impact": "Klasör organizasyonu tutarsız.",
@@ -237,7 +372,10 @@
       "fix": "lib/ui/ altına taşı, importu güncelle.",
       "effort": "S",
       "risk_of_fix": "low",
-      "blast_radius": ["lib/screens/", "lib/ui/settings_screen.dart"],
+      "blast_radius": [
+        "lib/screens/",
+        "lib/ui/settings_screen.dart"
+      ],
       "confidence": "high",
       "status": "open"
     },
@@ -247,7 +385,11 @@
       "severity": "P3",
       "title": "Mükerrer giriş noktası",
       "evidence": [
-        {"file": "lib/main_ui.dart", "line": 11, "snippet": "void main() => app.main();"}
+        {
+          "file": "lib/main_ui.dart",
+          "line": 11,
+          "snippet": "void main() => app.main();"
+        }
       ],
       "why": "Tarihsel kalıntı; kendi yorumu da artık main.dart ile aynı olduğunu söylüyor.",
       "impact": "Kafa karışıklığı; işlevsel etki yok.",
@@ -255,9 +397,45 @@
       "fix": "Kaldır.",
       "effort": "S",
       "risk_of_fix": "low",
-      "blast_radius": ["lib/main_ui.dart"],
+      "blast_radius": [
+        "lib/main_ui.dart"
+      ],
       "confidence": "high",
       "status": "open"
+    },
+    {
+      "id": "DEVOPS-004",
+      "category": "devops",
+      "severity": "P2",
+      "title": "Çevrimdışılık Sentry'ye hata olarak raporlanıyor — gerçek arızaları gizliyor",
+      "evidence": [
+        {
+          "file": "lib/diagnostics.dart",
+          "line": 30,
+          "snippet": "reportError her hatayı Sentry.captureException'a gönderiyordu"
+        },
+        {
+          "file": "lib/repository.dart",
+          "line": 125,
+          "snippet": "reportError(e, st, op: 'cloud_load')"
+        },
+        {
+          "file": "sentry",
+          "line": 0,
+          "snippet": "ClientException with SocketException: Failed host lookup: 'pfgljdvkmkqvlvdljvjk.supabase.co' (errno = 7)"
+        }
+      ],
+      "why": "DNS çözülememesi cihazın çevrimdışı olduğunu gösterir. Uygulama bunu ZATEN doğru işliyor: yerel önbelleğe düşüyor, veri güvende, kullanıcıya dataUnavailable ile bilgi veriliyor. Yani arıza değil, öngörülmüş durum.",
+      "impact": "Metroya giren tek bir kullanıcı her okuma/yazma denemesinde bir Sentry olayı üretiyor. Bu gürültü gerçek arızaları (satın alma doğrulaması, veri bozulması) görünmez hale getiriyor.",
+      "exploitability": "Sahadan gelen gerçek olayla doğrulandı (kullanıcı 0ff2cf9f...).",
+      "fix": "Çevrimdışı hatalar olay yerine breadcrumb olarak kaydedilir. TimeoutException BİLEREK hariç tutulur — boot_step zaman aşımları gerçek teşhis sinyali.",
+      "effort": "S",
+      "risk_of_fix": "low",
+      "blast_radius": [
+        "lib/diagnostics.dart"
+      ],
+      "confidence": "high",
+      "status": "fixed"
     }
   ],
   "checked_and_clean": [

@@ -75,4 +75,52 @@ void main() {
       await Future<void>.delayed(Duration.zero);
     });
   });
+
+  // Çevrimdışılık, ARIZA DEĞİL beklenen durumdur: uygulama yerel önbelleğe
+  // düşer, veri güvendedir, kullanıcıya AppState.dataUnavailable ile bilgi
+  // verilir. Sentry'ye olay olarak yazılırsa metroya giren tek bir kullanıcı
+  // onlarca olay üretir ve GERÇEK arızalar bu gürültüde görünmez olur.
+  group('isOfflineError — sinyali gürültüden ayırır', () {
+    test('DNS çözülememesi çevrimdışı sayılır', () {
+      // Sahadan gelen gerçek olay (Sentry):
+      expect(
+        isOfflineError(
+            "ClientException with SocketException: Failed host lookup: "
+            "'pfgljdvkmkqvlvdljvjk.supabase.co' (OS Error: No address "
+            "associated with hostname, errno = 7)"),
+        isTrue,
+      );
+    });
+
+    test('yaygın soket hataları çevrimdışı sayılır', () {
+      expect(isOfflineError('SocketException: Network is unreachable'), isTrue);
+      expect(isOfflineError('Connection refused'), isTrue);
+      expect(isOfflineError('Connection reset by peer'), isTrue);
+    });
+
+    test('TimeoutException çevrimdışı SAYILMAZ', () {
+      // Bilinçli: açılış adımı zaman aşımları (main.dart -> runStep,
+      // 'boot_step' etiketi) gerçek bir teşhis sinyali. Susturulursa
+      // aradığımız bilginin kendisi kaybolur.
+      expect(
+        isOfflineError('TimeoutException after 0:00:08.000000: Future not completed'),
+        isFalse,
+      );
+    });
+
+    test('gerçek uygulama hataları çevrimdışı sayılmaz', () {
+      expect(isOfflineError('Bad state: Mağaza hiç ürün döndürmedi'), isFalse);
+      expect(isOfflineError(const FormatException('bozuk json')), isFalse);
+      expect(isOfflineError(StateError('beklenmeyen durum')), isFalse);
+    });
+
+    test('çevrimdışı hata raporlamak da fırlatmaz', () {
+      expect(
+        () => reportError(
+            'SocketException: Failed host lookup', StackTrace.current,
+            op: 'cloud_load'),
+        returnsNormally,
+      );
+    });
+  });
 }
