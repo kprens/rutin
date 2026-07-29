@@ -9,7 +9,6 @@ import '../store.dart';
 import 'paywall_screen.dart';
 import 'rutin_ui.dart';
 import 'ui_logic.dart';
-import 'water_screen.dart' show rutinAppBar;
 
 /// Arkadaş / Sorumluluk Ortağı ekranı.
 ///

@@ -5,7 +5,6 @@ import '../l10n.dart';
 import '../store.dart';
 import 'rutin_ui.dart';
 import 'ui_logic.dart';
-import 'water_screen.dart' show rutinAppBar;
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});

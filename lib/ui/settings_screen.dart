@@ -12,7 +12,6 @@ import '../store.dart';
 import 'rutin_ui.dart';
 import 'ui_logic.dart';
 import 'onboarding_screen.dart';
-import 'water_screen.dart' show rutinAppBar;
 import '../screens/themes_screen.dart';
 
 class SettingsScreen extends StatelessWidget {

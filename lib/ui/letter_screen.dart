@@ -15,7 +15,6 @@ import '../l10n.dart';
 import '../models.dart';
 import '../store.dart';
 import 'rutin_ui.dart';
-import 'water_screen.dart' show rutinAppBar;
 
 class LetterScreen extends StatefulWidget {
   final Streak streak;

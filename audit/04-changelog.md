@@ -39,3 +39,33 @@ Testi geçirmek için test gevşetilmedi; test, uygulamanın yanlış olduğunu 
   `rutin_widget_summary` formatı (`X/Y`) satır 84 ve 192'de ve Kotlin okuyucusunda tutarlı
 
 **Durum:** ✅ Düzeltildi
+
+---
+
+## [ARCH-001] P2 · quality · Paylaşılan bileşen ekran dosyasından UI kit'e taşındı
+
+**Sorun:** `rutinAppBar` `lib/ui/water_screen.dart:329`'da tanımlıydı ve 8 ekran
+(paywall, ayarlar, arkadaşlar, rozetler, haftalık rapor, içgörüler, mektup, iyileşme
+zaman çizelgesi) yalnızca bunu alabilmek için su takip ekranını import ediyordu.
+Satın alma ekranı, su ekranının tüm bağımlılıklarını sürüklüyordu.
+
+**Ön kontrol (önemli):** 10 dosya `water_screen.dart` import ediyordu, ama ikisi
+(`profile_screen.dart:15`, `home_screen.dart:14`) `show` KULLANMIYORDU — onlar
+`WaterScreen`'in kendisini navigasyon için kullanıyor. Bu ikisine dokunulmadı.
+Sekizinin hepsi `rutin_ui.dart`'ı zaten import ediyordu, yani taşıma sonrası
+ek import gerekmedi.
+
+**Değişiklik:**
+- `lib/ui/rutin_ui.dart` — `rutinAppBar` eklendi (tek tanım)
+- `lib/ui/water_screen.dart` — `_appBar` + dışa açma satırı kaldırıldı (24 satır),
+  kendi kullanımı `rutinAppBar`'a çevrildi
+- 8 ekrandan `import 'water_screen.dart' show rutinAppBar;` kaldırıldı
+
+**Doğrulama:**
+- `flutter analyze --fatal-warnings` → **0 hata / 0 uyarı**
+- `flutter test` → **66/66**
+- Regresyon: `rutinAppBar` tanımı tek yerde (`rutin_ui.dart:678`); kullanan 9 ekranın
+  hepsi derleniyor; `water_screen.dart` fan-in **8+2 → 2**'ye düştü ve kalan ikisi
+  gerçekten `WaterScreen` kullananlar
+
+**Durum:** ✅ Düzeltildi

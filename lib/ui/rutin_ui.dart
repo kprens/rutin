@@ -665,6 +665,38 @@ class DataUnavailableBanner extends StatelessWidget {
   }
 }
 
+/// Alt ekranların standart başlık çubuğu: geri butonu + başlık.
+///
+/// Burada duruyor çünkü PAYLAŞILAN bir bileşen. Önceden
+/// `water_screen.dart`'ta tanımlıydı ve 8 ekran (paywall, ayarlar,
+/// arkadaşlar, rozetler, haftalık rapor, içgörüler, mektup, iyileşme
+/// zaman çizelgesi) yalnızca bunu alabilmek için su takip ekranını import
+/// ediyordu — yani satın alma ekranı, su ekranının tüm bağımlılıklarını
+/// sürüklüyordu. Paylaşılan UI'nin yeri UI kit'tir.
+///
+/// Geri butonu 48×48: dokunma hedefi minimumunun üstünde.
+Widget rutinAppBar(BuildContext context, String title) => Row(
+      children: [
+        GestureDetector(
+          onTap: () => Navigator.maybePop(context),
+          child: Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: RC.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: RC.stroke),
+            ),
+            child: Icon(Icons.chevron_left, color: RC.text),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Text(title,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+      ],
+    );
+
 /// Ekran içeriği için standart kaydırılabilir gövde (üstte hafif gradyan).
 class RScreen extends StatelessWidget {
   final List<Widget> children;

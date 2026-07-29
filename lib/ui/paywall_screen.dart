@@ -10,7 +10,6 @@ import '../l10n.dart';
 import '../legal.dart';
 import '../store.dart';
 import 'rutin_ui.dart';
-import 'water_screen.dart' show rutinAppBar;
 
 class PaywallScreen extends StatefulWidget {
   /// Paywall'ın NEREDEN açıldığı — ölçümün en değerli tek parametresi.

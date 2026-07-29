@@ -22,7 +22,6 @@ import '../store.dart';
 import 'letter_screen.dart';
 import 'paywall_screen.dart';
 import 'rutin_ui.dart';
-import 'water_screen.dart' show rutinAppBar;
 
 /// Ücretsiz kullanıcıya açık kilometre taşı sayısı.
 const _freeMilestones = 3;

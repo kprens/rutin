@@ -52,7 +52,7 @@ class _WaterScreenState extends State<WaterScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
             children: [
-              _appBar(context, t('Su Takibi', 'Water Tracker')),
+              rutinAppBar(context, t('Su Takibi', 'Water Tracker')),
               const SizedBox(height: 20),
 
               // ---- Büyük ilerleme kartı ----
@@ -303,27 +303,3 @@ class _WaterScreenState extends State<WaterScreen> {
 }
 
 /// Alt ekranlarda kullanılan geri butonlu başlık.
-Widget _appBar(BuildContext context, String title) => Row(
-      children: [
-        GestureDetector(
-          onTap: () => Navigator.maybePop(context),
-          child: Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: RC.card,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: RC.stroke),
-            ),
-            child: Icon(Icons.chevron_left, color: RC.text),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Text(title,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-      ],
-    );
-
-/// Diğer alt ekranların da kullanabilmesi için dışa aç.
-Widget rutinAppBar(BuildContext context, String title) => _appBar(context, title);

@@ -19,7 +19,6 @@ import '../store.dart';
 import '../weekly_report.dart';
 import 'paywall_screen.dart';
 import 'rutin_ui.dart';
-import 'water_screen.dart' show rutinAppBar;
 
 class WeeklyReportScreen extends StatefulWidget {
   const WeeklyReportScreen({super.key});

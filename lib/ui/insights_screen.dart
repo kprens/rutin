@@ -20,7 +20,6 @@ import '../l10n.dart';
 import '../store.dart';
 import 'paywall_screen.dart';
 import 'rutin_ui.dart';
-import 'water_screen.dart' show rutinAppBar;
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
