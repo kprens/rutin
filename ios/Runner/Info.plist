@@ -277,8 +277,14 @@
 			<string>3qcr597p9d.skadnetwork</string>
 		</dict>
 	</array>
+	<!-- GELİŞTİRME DİLİ (en) İÇİN YEDEK DEĞER.
+	     Gerçek metinler en.lproj/ ve tr.lproj/InfoPlist.strings dosyalarından
+	     gelir; buraya sabit Türkçe metin yazılması, uygulama İngilizce
+	     çalışırken izin penceresinin Türkçe görünmesine ve App Review'ın
+	     Guideline 4 (Design) altında reddetmesine yol açtı.
+	     Yeni bir NS*UsageDescription eklenirse İKİ .lproj dosyasına da eklenmeli. -->
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Bu veri, sana daha ilgili reklamlar göstermek için kullanılır.</string>
+	<string>This data is used to show you more relevant ads.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<!-- Rutin özel/kendi şifreleme algoritması içermiyor — yalnızca iOS'un
 	     kendi sağladığı standart HTTPS/TLS (Supabase, AdMob, Sentry ağ

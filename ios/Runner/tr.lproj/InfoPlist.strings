@@ -1,0 +1,11 @@
+/* Rutin — yerelleştirilmiş Info.plist metinleri (Türkçe).
+
+   BU DOSYA NEDEN VAR: Apple, uygulama İngilizce çalışırken izin
+   penceresinin Türkçe görünmesi sebebiyle Guideline 4 (Design) altında
+   reddetti. Metin Info.plist'e sabit yazıldığı için cihaz dilini hiç
+   takip etmiyordu.
+
+   Info.plist'e eklenen her NS*UsageDescription buraya VE
+   en.lproj/InfoPlist.strings dosyasına da eklenmeli. */
+
+"NSUserTrackingUsageDescription" = "Bu veri, sana daha ilgili reklamlar göstermek için kullanılır.";

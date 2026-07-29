@@ -1,0 +1,11 @@
+/* Rutin — localized Info.plist strings (English).
+
+   WHY THIS FILE EXISTS: App Review rejected the app under Guideline 4
+   (Design) because the permission prompt was shown in Turkish while the
+   app itself ran in English. The usage description was hardcoded in
+   Info.plist, so it never followed the device language.
+
+   Any NS*UsageDescription added to Info.plist must also be added here
+   AND in tr.lproj/InfoPlist.strings. */
+
+"NSUserTrackingUsageDescription" = "This data is used to show you more relevant ads.";
