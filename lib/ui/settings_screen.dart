@@ -12,7 +12,7 @@ import '../store.dart';
 import 'rutin_ui.dart';
 import 'ui_logic.dart';
 import 'onboarding_screen.dart';
-import '../screens/themes_screen.dart';
+import 'themes_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});

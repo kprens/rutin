@@ -69,3 +69,20 @@ ek import gerekmedi.
   gerçekten `WaterScreen` kullananlar
 
 **Durum:** ✅ Düzeltildi
+
+---
+
+## [QUAL-004] P3 · quality · Tek kalan ekran eski klasörden taşındı
+
+**Sorun:** `lib/screens/themes_screen.dart` tek başına eski klasör düzeninde kalmıştı;
+diğer 20 ekran `lib/ui/` altında. Refactor sırasında atlanmış.
+
+**Değişiklik:** `git mv` ile `lib/ui/themes_screen.dart`'a taşındı (geçmiş korundu).
+Yol referansları düzeltildi:
+- Taşınan dosyada `'../ui/paywall_screen.dart'` → `'paywall_screen.dart'`
+- `settings_screen.dart:15` `'../screens/themes_screen.dart'` → `'themes_screen.dart'`
+- Boşalan `lib/screens/` kaldırıldı
+
+**Doğrulama:** `flutter analyze --fatal-warnings` → 0/0 · `flutter test` → 66/66
+
+**Durum:** ✅ Düzeltildi

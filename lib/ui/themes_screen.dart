@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../l10n.dart';
 import '../store.dart';
 import '../theme.dart';
-import '../ui/paywall_screen.dart';
+import 'paywall_screen.dart';
 
 const Map<String, String> _themeDescTr = {
   'alev': 'Enerjik başlangıçlar için',
