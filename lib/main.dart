@@ -249,6 +249,37 @@ class RutinApp extends StatelessWidget {
       // bar vb.) hâlâ diğer moddadır — "açık temaya geçince her şey koyu
       // temaymış gibi görünme" hatasının kaynağı buydu.
       themeMode: s.darkMode ? ThemeMode.dark : ThemeMode.light,
+      // GENİŞ EKRANDA (iPad) İÇERİK GENİŞLİĞİNİ SINIRLA.
+      //
+      // NEDEN: Uygulama iPad'de de sunuluyor (TARGETED_DEVICE_FAMILY = "1,2")
+      // ve Apple incelemeyi iPad Air'de yapıyor. Sınır olmadan telefon için
+      // tasarlanmış her ekran 820pt genişliğe yayılıyordu: tek bir metin
+      // kutusu ekranın tamamını kaplıyor, altta ekranın yarısı boş kalıyordu.
+      // App Store bunu Guideline 4 altında "beklenenden düşük kaliteli
+      // kullanıcı deneyimi" olarak değerlendiriyor ve ret mesajında iPad'e
+      // açıkça atıf yapıyor ("should function as expected for iPad users").
+      //
+      // TEK NOKTADAN ÇÖZÜM: burada uygulanınca 24 ekranın tamamını kapsıyor;
+      // her ekranı tek tek düzenlemeye (ve 24 dosyada regresyon riskine)
+      // gerek kalmıyor.
+      //
+      // Telefonda ETKİSİ YOK: en geniş iPhone ~440pt, sınır 560pt. Yani bu
+      // değişiklik telefon düzenini bit düzeyinde bile değiştirmez.
+      //
+      // Arka plan tam ekranı kaplamaya devam eder (ColoredBox dışta);
+      // yalnızca içerik ortalanır — kenarlarda boş/siyah şerit oluşmaz.
+      builder: (context, child) {
+        if (child == null) return const SizedBox.shrink();
+        return ColoredBox(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: child,
+            ),
+          ),
+        );
+      },
       home: s.onboarded ? const RootShell() : const OnboardingScreen(),
     );
   }
