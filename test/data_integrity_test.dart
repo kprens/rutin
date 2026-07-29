@@ -230,4 +230,127 @@ void main() {
       expect(s.waterLog, isEmpty);
     });
   });
+
+  // 400 GÜNLÜK BUDAMA — veri saklama sınırı.
+  //
+  // dailyRollover, doneByDate/waterByDate/waterLog haritalarında en yeni 400
+  // anahtarı tutup gerisini siler. Bu, kullanıcının GEÇMİŞİNİ silen bir
+  // işlem: yanlış çalışırsa (ör. sıralama ters olursa) en yeni veri silinir,
+  // en eskisi kalır. Böyle bir hata sessizdir ve kullanıcı ancak aylar sonra
+  // fark eder. Bu davranışın testi yoktu.
+  group('dailyRollover — 400 günlük budama', () {
+    String key(int daysAgo) {
+      final d = DateTime.now().subtract(Duration(days: daysAgo));
+      return '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+          '${d.day.toString().padLeft(2, '0')}';
+    }
+
+    test('400 anahtarın altındaysa hiçbir şey silinmez', () {
+      final s = _stateWith(const LoadResult.missing());
+      for (var i = 0; i < 100; i++) {
+        s.doneByDate[key(i)] = [1];
+      }
+      s.dailyRollover();
+      expect(s.doneByDate.length, 100);
+    });
+
+    test('400 anahtar aşılırsa EN ESKİler silinir, en yeniler kalır', () {
+      final s = _stateWith(const LoadResult.missing());
+      // 450 gün: en eski 50 tanesi budanmalı.
+      for (var i = 0; i < 450; i++) {
+        s.doneByDate[key(i)] = [i];
+      }
+      s.dailyRollover();
+
+      expect(s.doneByDate.length, 400, reason: '400 anahtara indirilmeli');
+      // En yeni gün KORUNMALI:
+      expect(s.doneByDate.containsKey(key(0)), isTrue,
+          reason: 'bugünün kaydı asla silinmemeli');
+      expect(s.doneByDate.containsKey(key(399)), isTrue);
+      // En eskiler GİTMELİ:
+      expect(s.doneByDate.containsKey(key(449)), isFalse);
+      expect(s.doneByDate.containsKey(key(400)), isFalse);
+    });
+
+    test('waterByDate de aynı sınıra tabi', () {
+      final s = _stateWith(const LoadResult.missing());
+      for (var i = 0; i < 430; i++) {
+        s.waterByDate[key(i)] = i;
+      }
+      s.dailyRollover();
+      expect(s.waterByDate.length, 400);
+      expect(s.waterByDate.containsKey(key(0)), isTrue);
+      expect(s.waterByDate.containsKey(key(429)), isFalse);
+    });
+
+    test('waterLog da aynı sınıra tabi', () {
+      final s = _stateWith(const LoadResult.missing());
+      for (var i = 0; i < 420; i++) {
+        s.waterLog[key(i)] = [WaterLogEntry(ml: 250, time: '10:00')];
+      }
+      s.dailyRollover();
+      expect(s.waterLog.length, 400);
+      expect(s.waterLog.containsKey(key(0)), isTrue);
+      expect(s.waterLog.containsKey(key(419)), isFalse);
+    });
+  });
+
+  // AYLIK ÜRÜN KİMLİĞİ ÇÖZÜMLEME.
+  //
+  // Gerçek olay: App Store Connect'te aylık aboneliğin Product ID'si
+  // SONUNDA NOKTA ile oluşturulmuştu (`rutin_pro_monthly_v2.`). Kod
+  // noktasız kimliği arıyordu, mağaza ürünü tanımıyordu ve paywall'ın
+  // `ready` koşulu ikisini birden şart koştuğu için (yearly && monthly)
+  // ekran TAMAMEN kilitleniyordu — yıllık gelse bile. Günlerce hiç kimse
+  // abonelik satın alamadı.
+  //
+  // Apple oluşturulmuş bir Product ID'yi değiştirmeye izin vermiyor, yani
+  // mağaza tarafında düzeltilemez. Kod iki varyantı da sorguluyor.
+  group('Iap.resolveMonthly — mağaza hangi kimliği tanıyorsa o', () {
+    const dotted = 'rutin_pro_monthly_v2.';
+    const plain = 'rutin_pro_monthly_v2';
+
+    test('mağaza NOKTALI kimliği döndürürse o seçilir', () {
+      expect(
+        Iap.resolveMonthly([dotted, 'rutin_pro_yearly'],
+            isIos: true, fallback: plain),
+        dotted,
+      );
+    });
+
+    test('mağaza NOKTASIZ kimliği döndürürse o seçilir', () {
+      // İleride ürün düzgün kimlikle yeniden oluşturulursa kod
+      // kendiliğinden ona geçmeli — elle müdahale gerekmemeli.
+      expect(
+        Iap.resolveMonthly([plain, 'rutin_pro_yearly'],
+            isIos: true, fallback: dotted),
+        plain,
+      );
+    });
+
+    test('mağaza hiçbir adayı tanımıyorsa fallback korunur', () {
+      // Yanlış bir kimliğe geçmektense mevcut değerde kalmak güvenli.
+      expect(
+        Iap.resolveMonthly(['rutin_pro_yearly'], isIos: true, fallback: dotted),
+        dotted,
+      );
+      expect(Iap.resolveMonthly([], isIos: true, fallback: plain), plain);
+    });
+
+    test('Android her zaman kendi kimliğini kullanır', () {
+      // Android'de "yanma" yaşanmadı; orijinal kimlik sağlam.
+      expect(
+        Iap.resolveMonthly([dotted, plain], isIos: false, fallback: dotted),
+        'rutin_pro_monthly',
+      );
+    });
+
+    test('her iki varyant da dönerse noktalı olan önceliklidir', () {
+      // Aday listesi sırası bilinçli: bugün mağazada geçerli olan noktalı.
+      expect(
+        Iap.resolveMonthly([plain, dotted], isIos: true, fallback: plain),
+        dotted,
+      );
+    });
+  });
 }

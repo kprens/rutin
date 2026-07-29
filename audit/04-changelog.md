@@ -211,3 +211,53 @@ toplamak amaç değil; sinyali korumak amaç.
 - Regresyon: 13 `op` etiketinin tamamı çalışır durumda
 
 **Durum:** ✅ Düzeltildi
+
+---
+
+## [TEST-001] P1 · tests · Kritik yollara hedefli test
+
+**Sorun:** Kapsam %20,3 (375/1845). Bu soyut bir metrik değildi — bu oturumda tam
+bu boşluktan doğan iki gerçek hata bulundu (paywall çıkmazı, `home_logic`'in
+üretimde hiç çağrılmaması), üstelik testler yeşilken.
+
+**Yaklaşım:** Kapsam yüzdesini kovalamak yerine, **gerçekten para/veri kaybettiren
+üç yola** test yazıldı.
+
+### 1. `dailyRollover` 400 günlük budama (4 test)
+
+Bu fonksiyon kullanıcının GEÇMİŞİNİ siliyor. Sıralama ters olsaydı en yeni veri
+silinir, en eskisi kalırdı — sessiz bir hata, kullanıcı ancak aylar sonra fark
+eder. Test edilmiyordu. Artık kilitli: 400 altında hiçbir şey silinmiyor, üstünde
+**en eskiler** gidiyor, bugünün kaydı asla silinmiyor. `doneByDate`, `waterByDate`
+ve `waterLog` ayrı ayrı doğrulandı.
+
+### 2. Aylık ürün kimliği çözümleme (5 test)
+
+Bu oturumun en pahalı hatası: App Store Connect'te aylık aboneliğin Product ID'si
+sonunda **nokta** ile oluşturulmuştu (`rutin_pro_monthly_v2.`). Kod noktasızı
+arıyordu; paywall'ın `ready` koşulu ikisini birden şart koştuğu için ekran
+tamamen kilitleniyordu — yıllık gelse bile. Günlerce hiç kimse abonelik satın
+alamadı.
+
+Test yazabilmek için mantık saf bir fonksiyona çıkarıldı
+(`Iap.resolveMonthly(storeIds, isIos:, fallback:)`) — platform ve ağ bağımlılığı
+yok. Kapsanan davranışlar: noktalı seçilir, noktasız seçilir (ürün ileride düzgün
+kimlikle yeniden oluşturulursa kod kendiliğinden geçer), hiçbiri tanınmıyorsa
+fallback korunur, Android kendi kimliğini kullanır, ikisi de dönerse öncelik
+sırası.
+
+### 3. Çevrimdışı filtre (5 test — DEVOPS-004 ile birlikte)
+
+Sahadan gelen gerçek olay metniyle.
+
+**Doğrulama:**
+- `flutter test` → **80/80** (baseline 60/60, **+20 test**)
+- `flutter analyze --fatal-warnings` → **0 hata / 0 uyarı / 0 info**
+- Kapsam: **%20,3 → %23,3** (375/1845 → 438/1882)
+
+**Dürüst değerlendirme:** %23,3 hâlâ düşük ve bu iş bitmedi. Ama eklenen 20 test
+rastgele satır kapsamı değil; ikisi bu oturumda gerçekten yaşanmış, biri para
+kaybettiren hataları kilitliyor. Ekran/widget testleri ve satın alma akışının
+uçtan uca testi hâlâ yok — Faz 6'da kalan risk olarak raporlanacak.
+
+**Durum:** ✅ Uygulandı (süregiden iş olarak devam etmeli)

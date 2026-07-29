@@ -67,16 +67,36 @@ class Iap extends ChangeNotifier {
 
   static String get monthlyId => _monthlyId;
 
-  /// Mağazadan dönen ürünlere bakıp hangi aylık kimliğin geçerli olduğunu
-  /// belirler. Hiçbiri gelmediyse mevcut değer korunur.
-  static void _resolveMonthlyId(List<ProductDetails> loaded) {
-    if (!_isIos) return;
+  /// Mağazanın döndürdüğü kimliklere bakıp hangi aylık kimliğin geçerli
+  /// olduğunu seçer. SAF fonksiyon — platform ve ağ bağımlılığı yok, bu
+  /// yüzden doğrudan test edilebilir.
+  ///
+  /// Bu mantığın testi olması önemli: mağazadaki tek bir karakter farkı
+  /// (sondaki nokta) yüzünden paywall günlerce hiç fiyat gösteremedi ve
+  /// hiç kimse abonelik satın alamadı. Kod okumasıyla bulunması zor,
+  /// testle kilitlenmesi kolay bir hata sınıfı.
+  ///
+  /// Mağaza hiçbir adayı tanımıyorsa [fallback] korunur — yanlış bir
+  /// kimliğe geçmektense mevcut değerde kalmak daha güvenli.
+  @visibleForTesting
+  static String resolveMonthly(
+    List<String> storeIds, {
+    required bool isIos,
+    required String fallback,
+  }) {
+    if (!isIos) return _androidMonthlyId;
     for (final candidate in _iosMonthlyCandidates) {
-      if (loaded.any((p) => p.id == candidate)) {
-        _monthlyId = candidate;
-        return;
-      }
+      if (storeIds.contains(candidate)) return candidate;
     }
+    return fallback;
+  }
+
+  static void _resolveMonthlyId(List<ProductDetails> loaded) {
+    _monthlyId = resolveMonthly(
+      loaded.map((p) => p.id).toList(),
+      isIos: _isIos,
+      fallback: _monthlyId,
+    );
   }
 
   static const String yearlyId = 'rutin_pro_yearly';
