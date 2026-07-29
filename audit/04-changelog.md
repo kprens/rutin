@@ -86,3 +86,45 @@ Yol referansları düzeltildi:
 **Doğrulama:** `flutter analyze --fatal-warnings` → 0/0 · `flutter test` → 66/66
 
 **Durum:** ✅ Düzeltildi
+
+---
+
+## [QUAL-003] P3 · quality · Kullanılmayan RError, silinmek yerine benimsendi
+
+**Sorun:** `lib/ui/rutin_ui.dart:569` — `RError` tanımlıydı ama hiçbir yerden
+çağrılmıyordu (ölü kod).
+
+**Neden silinmedi:** Kodu okurken şu ortaya çıktı — `paywall_screen.dart:414`'te
+`RError`'ın yaptığı şey **elle tekrarlanmıştı**: aynı `cloud_off_rounded` ikonu,
+aynı "Tekrar Dene" etiketi, aynı yapı. Yani bileşen ölü değildi, sadece
+kullanılması gereken yerde kullanılmamıştı. Silmek tekrarı kalıcı hale getirirdi.
+
+**Değişiklik:** `lib/ui/paywall_screen.dart` — elle kurulan `REmpty(...)` bloğu
+`RError(title:, message:, onRetry:)` ile değiştirildi. Görsel çıktı birebir aynı
+(RError zaten REmpty'ye delege ediyor), tekrar ortadan kalktı.
+
+**Doğrulama:** `flutter analyze --fatal-warnings` → 0/0 · `flutter test` → 66/66
+
+**Durum:** ✅ Düzeltildi
+
+---
+
+## [ARCH-003] P3 · quality · UYGULANMADI (gerekçeli)
+
+**Bulgu:** `lib/main_ui.dart:11` yalnızca `main.dart`'ın `main()`'ini çağıran
+mükerrer giriş noktası.
+
+**Neden uygulanmadı:** Kaldırmadan önce referans taraması yapıldı ve dosyanın
+**dokümante edilmiş bir çalıştırma hedefi** olduğu görüldü:
+
+- `RELEASE-CHECKLIST.md:165` — "`main_ui.dart`'ı bir kez çalıştırıp doğrula"
+- `RELEASE-CHECKLIST.md:180` — `flutter run -t lib/main_ui.dart`
+
+Silmek, dokümante edilmiş bir komutu sıfır işlevsel kazanç karşılığında bozar.
+Faz 0'daki "bilmiyorsan sor / kapsam sızması yasak" kuralları gereği
+uygulanmadı; öneri olarak kalıyor.
+
+**Öneri:** Dosya kaldırılacaksa `RELEASE-CHECKLIST.md`'deki üç referans da
+aynı commit'te güncellenmeli. Bu bir ürün/süreç kararıdır.
+
+**Durum:** ⏸️ Uygulanmadı — gerekçe yukarıda

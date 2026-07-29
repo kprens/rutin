@@ -411,15 +411,16 @@ class _PaywallScreenState extends State<PaywallScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
-          REmpty(
-            icon: Icons.cloud_off_rounded,
+          // Standart hata durumu bileşeni (RError). Burada REmpty'nin ikonu,
+          // eylem etiketi ve davranışı elle tekrarlanıyordu — RError zaten
+          // tam olarak bu üçünü kapsıyor.
+          RError(
             title: t('Planlar şu an yüklenemedi',
                 "Couldn't load the plans"),
             message: t(
                 'Mağazaya ulaşılamıyor. İnternet bağlantını kontrol edip tekrar deneyebilirsin.',
                 "We can't reach the store. Check your connection and try again."),
-            actionLabel: t('Tekrar Dene', 'Try Again'),
-            onAction: () => Iap.instance.retryProducts(),
+            onRetry: () => Iap.instance.retryProducts(),
           ),
           const SizedBox(height: 18),
           GestureDetector(
