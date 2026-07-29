@@ -128,6 +128,49 @@ Future<void> applyPendingWidgetToggles(AppState s) async {
 /// KENDİ deposundaki "done" bayrağını çevirip anında görsel geri bildirim
 /// verir ve gerçek işlemi ana uygulamaya bırakan bir not (bekleyen kuyruk)
 /// bırakır (bkz. dosya başı açıklaması).
+/// Widget görev listesinde [id]'li kaydın `done` bayrağını çevirir ve
+/// tamamlanan sayısını döndürür. Saf fonksiyon — platform kanalına
+/// dokunmaz, bu yüzden doğrudan test edilebilir.
+///
+/// BOZUK VERİYE KARŞI ASLA FIRLATMAZ. Bu bir tercih değil zorunluluk:
+/// çağıran [backgroundCallback] ayrı bir Flutter izolatında çalışır ve
+/// üstünde hiçbir yakalayıcı yoktur. Eskiden burada `item as
+/// Map<String, dynamic>` çıplak cast'ı vardı; dizideki tek bir sayı ya da
+/// null TypeError fırlatıyor, widget dokunuşu sessizce kayboluyordu.
+/// (Aynı dosyadaki [_flushPending] bu deseni zaten tip kontrollü yazmıştı —
+/// tutarsızlık buradaydı.)
+///
+/// Bozuk elemanlar SİLİNMEZ, yalnızca atlanır: veri kaybı yaratmadan
+/// devam etmek, sessizce kaybolmaktan da veriyi budamaktan da iyidir.
+({List<dynamic> list, int doneCount}) toggleWidgetTasks(
+    List<dynamic> list, int id) {
+  // Girdi haritaları YERİNDE DEĞİŞTİRİLMEZ; her biri gevşek tipli bir
+  // kopyaya alınır.
+  //
+  // Sebebi Dart'ın kovaryansı: `Map<String, int>` de `is Map<String, dynamic>`
+  // kontrolünden GEÇER, dolayısıyla tip kontrolü `item['done'] = true`
+  // yazarken oluşacak TypeError'ı engellemez. Kopya üzerinde çalışmak bu
+  // tuzağı tamamen ortadan kaldırır ve fonksiyonun "asla fırlatmaz"
+  // sözleşmesini tipten bağımsız hale getirir — çağıran, yakalayıcısı
+  // olmayan bir izolat.
+  final out = <dynamic>[];
+  var doneCount = 0;
+  for (final item in list) {
+    if (item is! Map) {
+      out.add(item); // bozuk eleman korunur, veri kaybı olmaz
+      continue;
+    }
+    final m = <String, dynamic>{};
+    item.forEach((k, v) => m['$k'] = v);
+    if (m['id'] == id) {
+      m['done'] = !(m['done'] == true);
+    }
+    if (m['done'] == true) doneCount++;
+    out.add(m);
+  }
+  return (list: out, doneCount: doneCount);
+}
+
 @pragma('vm:entry-point')
 Future<void> backgroundCallback(Uri? uri) async {
   if (uri == null || uri.host != 'toggle') return;
@@ -143,14 +186,10 @@ Future<void> backgroundCallback(Uri? uri) async {
   } catch (_) {
     return;
   }
-  var doneCount = 0;
-  for (final item in list) {
-    final m = item as Map<String, dynamic>;
-    if (m['id'] == id) m['done'] = !(m['done'] as bool? ?? false);
-    if (m['done'] == true) doneCount++;
-  }
-  await HomeWidget.saveWidgetData(_kTasksKey, jsonEncode(list));
-  await HomeWidget.saveWidgetData('rutin_widget_summary', '$doneCount/${list.length}');
+  final toggled = toggleWidgetTasks(list, id);
+  await HomeWidget.saveWidgetData(_kTasksKey, jsonEncode(toggled.list));
+  await HomeWidget.saveWidgetData(
+      'rutin_widget_summary', '${toggled.doneCount}/${toggled.list.length}');
 
   final pendingRaw = await HomeWidget.getWidgetData<String>(_kPendingKey);
   List<dynamic> pending = [];
