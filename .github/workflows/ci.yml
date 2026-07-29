@@ -1,6 +1,6 @@
 # Rutin — sürekli entegrasyon.
 #
-# NEDEN VAR: Bu projede testler (38 adet) kritik davranışları koruyor —
+# NEDEN VAR: Bu projede testler (66 adet) kritik davranışları koruyor —
 # veri kaybı zinciri, IAP ürün tipi ayrımı, analitikteki PII filtresi.
 # Ama hiçbir otomasyon onları çalıştırmıyordu; yani bir regresyon ancak
 # birisi elle `flutter test` yazarsa fark edilirdi. Bu iş akışı, testleri
@@ -11,8 +11,18 @@
 name: CI
 
 on:
+  # Dal filtresi YOK — bilinçli.
+  #
+  # Önceden yalnızca [main, theme-update] listelenmişti. Sonuç: bir özellik
+  # ya da denetim dalına yapılan push hiç CI çalıştırmıyor, geri bildirim
+  # PR açılana kadar gecikiyordu. Kırık bir değişikliği bir saat sonra
+  # öğrenmek yerine iki dakika sonra öğrenmek istiyoruz. (theme-update
+  # dalı zaten main'e birleştirildi, listede tutmanın anlamı da kalmamıştı.)
+  #
+  # Maliyet: aşağıdaki `concurrency` bloğu aynı dala arka arkaya yapılan
+  # pushlarda eski koşuyu iptal ediyor, yani hızlı ardışık pushlar tek koşu
+  # kadar harcıyor.
   push:
-    branches: [main, theme-update]
   pull_request:
   # Elle de tetiklenebilsin.
   workflow_dispatch:
@@ -60,6 +70,17 @@ jobs:
       - name: Testler
         run: flutter test --no-pub --reporter expanded
 
+      # Bilgilendirme amaçlı — build'i KIRMAZ.
+      #
+      # Amaç bağımlılık borcunu görünür tutmak. Şu an 21 paket daha yeni bir
+      # sürüme kısıtlanmış durumda ve 7 eklenti hâlâ Kotlin Gradle Plugin
+      # uyguluyor ("Future versions of Flutter will fail to build..."). Bu
+      # borç sessizce büyürse bir Flutter yükseltmesinde Android derlemesi
+      # tamamen kırılır. Kapıyı katı yapmıyoruz: yükseltme kararı insana ait,
+      # ama karar verirken sayıyı görmek gerekiyor.
+      - name: Bağımlılık raporu (bilgilendirme)
+        run: flutter pub outdated || true
+
   build-android:
     name: Android derleme
     runs-on: ubuntu-latest
@@ -91,3 +112,31 @@ jobs:
       # derleniyor mu" sorusunu her değişiklikte yanıtlamaktır.
       - name: Debug APK derle
         run: flutter build apk --debug
+
+  build-ios:
+    name: iOS derleme
+    runs-on: macos-latest
+    # Test geçmeden derlemeye girip dakika harcama.
+    needs: analyze-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      # NEDEN VAR: Bu uygulama iOS'ta yayınlanıyor ama CI yalnızca Android
+      # derliyordu. iOS tarafını kıran bir değişiklik (Info.plist, entitlement,
+      # Podfile, platform kanalı kullanan Dart kodu) CI'dan YEŞİL geçiyordu ve
+      # ancak biri elle `flutter build ipa` çalıştırınca fark ediliyordu.
+      #
+      # --no-codesign: imzalama sertifikası ve provisioning profile repoda
+      # YOKTUR ve olmamalıdır. Buradaki soru "mağazaya çıkacak paketi üret"
+      # değil, "iOS tarafı gerçekten derleniyor mu".
+      - name: iOS derle (imzasız)
+        run: flutter build ios --debug --no-codesign

@@ -128,3 +128,40 @@ uygulanmadı; öneri olarak kalıyor.
 aynı commit'te güncellenmeli. Bu bir ürün/süreç kararıdır.
 
 **Durum:** ⏸️ Uygulanmadı — gerekçe yukarıda
+
+---
+
+## [DEVOPS-002 + DEVOPS-003] P2/P3 · devops · CI kapsamı genişletildi
+
+**Sorun 1 (DEVOPS-002):** Pipeline yalnızca analiz, test ve **Android** debug
+derlemesi yapıyordu. Uygulama iOS'ta yayınlanıyor; iOS tarafını kıran bir
+değişiklik (Info.plist, entitlement, Podfile, platform kanalı kullanan Dart kodu)
+CI'dan **yeşil geçiyordu**. Ayrıca bağımlılık borcu hiçbir yerde görünmüyordu.
+
+**Sorun 2 (DEVOPS-003):** `push` tetikleyicisi yalnızca `[main, theme-update]`
+dallarını kapsıyordu; özellik/denetim dallarına yapılan pushlar CI çalıştırmıyordu.
+(`theme-update` zaten main'e birleştirilmişti.)
+
+**Değişiklik — `.github/workflows/ci.yml`:**
+- `push` dal filtresi kaldırıldı; tüm dallar CI çalıştırıyor. Maliyet, mevcut
+  `concurrency: cancel-in-progress` bloğu sayesinde sınırlı.
+- Yeni iş: **`build-ios`** (macos-latest, `needs: analyze-and-test`) →
+  `flutter build ios --debug --no-codesign`
+- Yeni adım: **bağımlılık raporu** (`flutter pub outdated`), build'i KIRMAZ —
+  amaç 21 eski paket + KGP borcunu görünür tutmak, yükseltme kararını insana
+  bırakmak
+- Başlıktaki bayat test sayısı düzeltildi (38 → 66)
+
+**Doğrulama:**
+- YAML sözdizimi doğrulandı → 3 iş: `analyze-and-test`, `build-android`, `build-ios`
+- **CI'a eklenen iOS komutu YERELDE çalıştırıldı:** `flutter build ios --debug
+  --no-codesign` → `✓ Built build/ios/iphoneos/Runner.app` (64,9s).
+  Çalıştırmadan commit'lenmedi.
+- `flutter analyze` → 0/0 · `flutter test` → 66/66
+
+**Not:** `build-ios` işi macOS runner kullanır. Public repo'da GitHub Actions
+dakikaları ücretsizdir (dosyanın kendi başlığında da yazıyor), ancak repo bir gün
+private yapılırsa macOS dakikaları Linux'un 10 katı sayılır — o durumda bu işin
+yalnızca `main` ve PR'larda çalışacak şekilde daraltılması gerekebilir.
+
+**Durum:** ✅ Düzeltildi
