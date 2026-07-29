@@ -1,0 +1,36 @@
+{
+  "phase": 3,
+  "phase_name": "Triyaj tamamlandı — ONAY KAPISI 1'de bekleniyor",
+  "branch": "chore/audit-2026-07-29",
+  "scope": "all",
+  "dry_run": false,
+  "last_finding_id": null,
+  "baseline": {
+    "analyze": "0 hata, 0 uyarı (--fatal-warnings)",
+    "test": "60/60 geçti",
+    "line_coverage_instrumented": "20.3% (375/1845)",
+    "outdated_packages": 21,
+    "android_debug_build": "başarılı",
+    "ci": "yeşil"
+  },
+  "toolchain": {
+    "flutter": "3.44.5",
+    "dart": "3.12.2",
+    "analyze": "flutter analyze --no-pub --fatal-warnings",
+    "test": "flutter test --no-pub",
+    "build_debug": "flutter build apk --debug",
+    "build_release": "./build_release.sh"
+  },
+  "notes": [
+    "Uygulama App Store incelemesinde (Waiting for Review, build 14).",
+    "main dalında push edilmemiş 2 commit var: b27adfc, 108c4ca.",
+    "Repoda önceki denetim raporu var: AUDIT.md (F-001..F-012)."
+  ],
+  "findings": {
+    "P0": 0,
+    "P1": 2,
+    "P2": 6,
+    "P3": 5,
+    "total": 13
+  }
+}
