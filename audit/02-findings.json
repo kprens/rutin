@@ -45,7 +45,7 @@
         "lib/home_widget_service.dart"
       ],
       "confidence": "high",
-      "status": "open"
+      "status": "fixed"
     },
     {
       "id": "TEST-001",
@@ -169,7 +169,7 @@
         ".github/workflows/ci.yml"
       ],
       "confidence": "high",
-      "status": "open"
+      "status": "fixed"
     },
     {
       "id": "QUAL-001",
@@ -264,7 +264,7 @@
         "+8 ekran"
       ],
       "confidence": "high",
-      "status": "open"
+      "status": "fixed"
     },
     {
       "id": "ARCH-002",
@@ -323,7 +323,7 @@
         ".github/workflows/ci.yml"
       ],
       "confidence": "high",
-      "status": "open"
+      "status": "fixed"
     },
     {
       "id": "QUAL-003",
@@ -347,7 +347,7 @@
         "lib/ui/rutin_ui.dart"
       ],
       "confidence": "high",
-      "status": "open"
+      "status": "fixed"
     },
     {
       "id": "QUAL-004",
@@ -377,7 +377,7 @@
         "lib/ui/settings_screen.dart"
       ],
       "confidence": "high",
-      "status": "open"
+      "status": "fixed"
     },
     {
       "id": "ARCH-003",
@@ -401,7 +401,8 @@
         "lib/main_ui.dart"
       ],
       "confidence": "high",
-      "status": "open"
+      "status": "wont_fix",
+      "wont_fix_reason": "RELEASE-CHECKLIST.md:165 ve :180 bu dosyayı dokümante edilmiş bir çalıştırma hedefi olarak kullanıyor (flutter run -t lib/main_ui.dart). Sıfır işlevsel kazanç için dokümante edilmiş bir komutu bozmak doğru değil."
     },
     {
       "id": "DEVOPS-004",
