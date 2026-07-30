@@ -1,0 +1,85 @@
+{
+  "identifier" : "A1B2C3D4",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "34.99",
+      "familyShareable" : false,
+      "internalID" : "LIFETIME01",
+      "localizations" : [
+        {
+          "description" : "One-time purchase, permanent access",
+          "displayName" : "Rutin Pro Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "rutin_pro_lifetime",
+      "referenceName" : "Rutin Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6793152072",
+    "_developerTeamID" : "VDL55LKKWQ",
+    "_lastSynchronizedDate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "GROUP01",
+      "localizations" : [],
+      "name" : "Rutin Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "MONTHLY01",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Ad-free + all features, billed monthly",
+              "displayName" : "Rutin Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "rutin_pro_monthly_v2",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Rutin Pro Monthly v2",
+          "subscriptionGroupID" : "GROUP01",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "34.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "YEARLY01",
+          "introductoryOffer" : {
+            "internalID" : "TRIAL01",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Ad-free + all features, billed yearly",
+              "displayName" : "Rutin Pro Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "rutin_pro_yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Rutin Pro Yearly",
+          "subscriptionGroupID" : "GROUP01",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
