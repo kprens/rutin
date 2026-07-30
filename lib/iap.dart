@@ -254,10 +254,23 @@ class Iap extends ChangeNotifier {
     try {
       available =
           await _iap.isAvailable().timeout(const Duration(seconds: 5));
-    } catch (_) {
+    } catch (e, st) {
       available = false;
+      // Eskiden `catch (_)` ile sessizce yutuluyordu. Sonuç: mağaza katmanına
+      // hiç ulaşılamadığında paywall "planlar yüklenemedi" gösteriyor ama
+      // Sentry'ye TEK BİR KAYIT bile düşmüyordu — yani sahada satın alma
+      // tamamen çalışmazken elimizde hiçbir kanıt olmuyordu.
+      reportError(e, st, op: 'iap_store_unavailable');
     }
     if (!available) {
+      // Zaman aşımı/istisna olmadan da false dönebilir (ör. ebeveyn
+      // denetimiyle satın alma kısıtlanmış). Bu da raporlanmalı: bu durumda
+      // kullanıcı HİÇBİR ŞEY satın alamaz, yani gelir sıfırdır.
+      reportError(
+        StateError('Mağaza katmanı kullanılamıyor (isAvailable=false)'),
+        StackTrace.current,
+        op: 'iap_store_unavailable',
+      );
       notifyListeners();
       return;
     }
@@ -320,12 +333,23 @@ class Iap extends ChangeNotifier {
     try {
       available =
           await _iap.isAvailable().timeout(const Duration(seconds: 5));
-    } catch (_) {
+    } catch (e, st) {
       available = false;
+      // init()'teki aynı kör nokta: sessiz yutulursa paywall hata gösterir
+      // ama hiçbir kayıt düşmez. Buradaki daha da değerli çünkü bu yol
+      // KULLANICI paywall'ı açtığında çalışıyor — yani satın almaya
+      // niyetlenmiş biri engellenmiş demektir.
+      reportError(e, st, op: 'iap_store_unavailable', tags: {'at': 'paywall'});
     }
     if (!available) {
-      // Mağaza katmanına hiç ulaşılamadı. Bu da tamamlanmış bir denemedir —
-      // aksi halde arayüz sonsuza kadar "yükleniyor" gösterir.
+      reportError(
+        StateError('Mağaza katmanı kullanılamıyor (isAvailable=false)'),
+        StackTrace.current,
+        op: 'iap_store_unavailable',
+        tags: {'at': 'paywall'},
+      );
+      // Bu da tamamlanmış bir denemedir — aksi halde arayüz sonsuza kadar
+      // "yükleniyor" gösterir.
       productsLoadAttempted = true;
       notifyListeners();
       return;
