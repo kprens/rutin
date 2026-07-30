@@ -51,6 +51,19 @@ class HabitWidgetProvider : HomeWidgetProvider() {
             // çıkar; kullanıcı, uygulamayı hiç açmamışken çökme görür.
             // Ana ekran widget'ı ikincil bir özellik — çizilemiyorsa
             // sessizce atlanmalı, uygulamayı aşağı çekmemeli.
+            //
+            // Sahada gerçekleşti (Sentry RUTIN-6, ölümcül, Android 16 /
+            // Galaxy S25): home_widget 0.6.0 aşağıdaki
+            // HomeWidgetLaunchIntent.getActivity çağrısında PendingIntent'i
+            // `pendingIntentBackgroundActivityStartMode` ile oluşturuyordu.
+            // Android 15+ bunu OLUŞTURMA anında reddediyor
+            // (IllegalArgumentException); paket 0.7.0+1'de SDK 35+ için
+            // `setPendingIntentCreatorBackgroundActivityStartMode`'a geçerek
+            // düzeltildi ve bağımlılık oraya yükseltildi.
+            //
+            // Bu try/catch çökmeyi durdurur ama widget'ı ONARMAZ: istisna
+            // updateAppWidget'tan ÖNCE atıldığı için widget boş/eski kalır.
+            // Yani asıl düzeltme sürüm yükseltmesi; burası emniyet ağı.
             try {
                 renderWidget(context, appWidgetManager, widgetId, widgetData)
             } catch (e: Exception) {

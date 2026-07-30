@@ -24,7 +24,12 @@ dependencies:
   sentry_flutter: ^9.0.0
   in_app_review: ^2.0.9
   http: ^1.2.0
-  home_widget: ^0.6.0
+  # 0.7.0+1 BİLİNÇLİ bir tavan: bu sürüm Android 15'te widget'tan uygulama
+  # açarken oluşan çökmeyi düzeltiyor (Sentry RUTIN-6) ve iOS asgarisini
+  # 11'de tutuyor. 0.9.x iOS 14 istiyor; uygulamanın hedefi iOS 13 olduğu
+  # için orada `flutter build ios` derlenmiyor. Yükseltmeden önce iOS
+  # asgari sürümünü yükseltme kararı ayrıca verilmeli.
+  home_widget: ^0.7.0+1
   # Gizlilik politikası / kullanım koşulları bağlantılarını tarayıcıda açmak
   # için. Bu bağlantılar App Store (3.1.2 abonelikler, 5.1.1 gizlilik) ve
   # Google Play tarafından ZORUNLU tutuluyor; uygulamada hiç yoktu.
