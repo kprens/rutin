@@ -351,3 +351,35 @@ Değişiklik günlüğü taranarak çökmeyi düzelten **en erken** sürüm bulu
 
 iOS asgari sürümünü 14'e çekmek ayrı ve kullanıcıya dokunan bir karar —
 gönderim sırasında değil, bilinçli olarak alınmalı.
+
+### RUTIN-6 çalışma zamanı doğrulaması (emülatör, API 37 / Android 17)
+
+Kaynak karşılaştırması tek başına yeterli sayılmadı; düzeltme gerçek bir
+Android 15+ cihazda çalıştırılarak doğrulandı.
+
+**Neden zor:** `onUpdate` içindeki try/catch istisnayı yutuyor, bu yüzden
+"logcat temiz" tek başına kanıt değil. Ayırt edici gözlem, widget'ın
+**çizilip çizilmediği**.
+
+**Yöntem:**
+1. `app-debug.apk` API 37 emülatöre kuruldu, widget ana ekrana eklendi
+2. Widget verisi `run-as` ile doğrudan `HomeWidgetPreferences.xml`'e yazıldı
+   (hesap açmadan test edebilmek için)
+3. `am broadcast APPWIDGET_UPDATE` ile `onUpdate` tetiklendi
+
+**Sonuç:**
+
+| Aşama | Widget görünümü |
+|---|---|
+| Süreç öldürülmüş, güncelleme yok | Gri yer tutucu (uygulama ikonu) |
+| `onUpdate` tetiklendikten sonra | "Bugün" başlığı + özet `0/0` |
+
+Başlık (`android:text="Bugün"`) layout'ta sabit olduğu için kanıt sayılmadı.
+Belirleyici olan **özet satırı**: layout varsayılanı `android:text=""` ve bu
+alanı yalnızca `renderWidget` dolduruyor — üstelik çöken
+`HomeWidgetLaunchIntent.getActivity` çağrısından SONRA gelen
+`appWidgetManager.updateAppWidget` ile. Özetin ekrana düşmesi, `renderWidget`
+fonksiyonunun API 37'de baştan sona çalıştığını gösteriyor.
+
+logcat'te `FATAL`, `Unable to start receiver`, `IllegalArgumentException`
+kaydı yok.
