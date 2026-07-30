@@ -43,6 +43,31 @@ import 'rutin_ui.dart';
   return (plans: plans, selected: selected);
 }
 
+/// Yıllık planda App Store Connect'te tanımlı bir ÜCRETSİZ DENEME
+/// (Introductory Offer) var mı.
+///
+/// VARSAYILAN `false` — bilinçli ve güvenli taraf.
+///
+/// Paywall eskiden koşulsuz olarak "7 Gün Ücretsiz Dene" yazıyordu. App
+/// Store Connect'te böyle bir teklif tanımlı DEĞİLSE kullanıcı butona basıp
+/// anında ücretlendirilir: Guideline 2.3 (yanıltıcı beyan) ihlali, iade ve
+/// düşük puan sebebi. Denetim sırasında yıllık abonelik sayfasında
+/// "Introductory Offers" bölümü görülemedi, yani teklifin varlığı
+/// KANITLANAMADI.
+///
+/// Asimetri tek yönlü: deneme yokken vaat etmek zararlı; varken vaat
+/// etmemek yalnızca küçük bir dönüşüm kaybı — üstelik Apple'ın satın alma
+/// ekranı teklifi zaten kendisi gösterir.
+///
+/// NASIL AÇILIR: App Store Connect → Subscriptions → Rutin Pro Yıllık →
+/// Introductory Offers bölümünde 1 haftalık ücretsiz teklifin tanımlı
+/// olduğu DOĞRULANDIKTAN sonra burayı `true` yap. Başka hiçbir yeri
+/// değiştirmek gerekmez.
+///
+/// (Kalıcı çözüm, teklifi çalışma zamanında mağazadan okumaktır —
+/// `in_app_purchase_storekit` gerektirir, 1.0.1'e bırakıldı.)
+const bool kYearlyHasIntroTrial = false;
+
 class PaywallScreen extends StatefulWidget {
   /// Paywall'ın NEREDEN açıldığı — ölçümün en değerli tek parametresi.
   ///
@@ -424,9 +449,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   /// Abonelik koşullarının AÇIK beyanı.
   ///
-  /// Ana buton "7 Gün Ücretsiz Dene" diyor ama deneme sonrası ne kadar,
-  /// hangi sıklıkla ve otomatik olarak mı ücretlendirileceği hiçbir yerde
-  /// yazmıyordu. Bu, App Store Review Guideline 3.1.2'nin ("abonelik süresi,
+  /// Ana buton satın almaya çağırıyor ama ne kadar, hangi sıklıkla ve
+  /// otomatik olarak mı ücretlendirileceği hiçbir yerde yazmıyordu. Bu,
+  /// App Store Review Guideline 3.1.2'nin ("abonelik süresi,
   /// fiyatı ve otomatik yenileme koşulları satın alma öncesinde açıkça
   /// gösterilmeli") doğrudan ihlali ve tüketici mevzuatı açısından da
   /// risklidir. Ayrıca kullanıcı beklemediği bir tahsilatla karşılaşınca
@@ -442,9 +467,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
           '$price is charged once. This is not a subscription and does not renew.');
     } else if (_selectedId == Iap.yearlyId) {
       final price = yearly?.price ?? '';
-      text = t(
-          '7 günlük deneme ücretsizdir. Deneme bitiminde $price yıllık olarak tahsil edilir ve iptal etmediğin sürece her yıl otomatik yenilenir. İptali, denemenin bitiminden en az 24 saat önce mağaza hesabının abonelik ayarlarından yapabilirsin.',
-          'The 7-day trial is free. When it ends you\'ll be charged $price per year, renewing automatically each year unless cancelled. Cancel at least 24 hours before the trial ends from your store account\'s subscription settings.');
+      text = kYearlyHasIntroTrial
+          ? t(
+              '7 günlük deneme ücretsizdir. Deneme bitiminde $price yıllık olarak tahsil edilir ve iptal etmediğin sürece her yıl otomatik yenilenir. İptali, denemenin bitiminden en az 24 saat önce mağaza hesabının abonelik ayarlarından yapabilirsin.',
+              'The 7-day trial is free. When it ends you\'ll be charged $price per year, renewing automatically each year unless cancelled. Cancel at least 24 hours before the trial ends from your store account\'s subscription settings.')
+          : t(
+              '$price yıllık olarak tahsil edilir ve iptal etmediğin sürece her yıl otomatik yenilenir. İptali mağaza hesabının abonelik ayarlarından yapabilirsin.',
+              '$price is charged yearly and renews automatically each year unless cancelled. Cancel from your store account\'s subscription settings.');
     } else {
       final price = monthly?.price ?? '';
       text = t(
@@ -545,7 +574,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
     // deneme maliyetini en yüksek LTV'li plana yönlendirmek standart ve
     // sağlıklı bir yaklaşımdır.
     if (_selectedId == Iap.yearlyId) {
-      return t('7 Gün Ücretsiz Dene', 'Start 7-Day Free Trial');
+      // Deneme yalnızca mağazada GERÇEKTEN tanımlıysa vaat edilir
+      // (bkz. kYearlyHasIntroTrial).
+      return kYearlyHasIntroTrial
+          ? t('7 Gün Ücretsiz Dene', 'Start 7-Day Free Trial')
+          : t('Yıllık Planı Başlat', 'Start Yearly Plan');
     }
     return t('Aylık Planı Başlat', 'Start Monthly Plan');
   }
