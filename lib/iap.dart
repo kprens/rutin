@@ -101,38 +101,48 @@ class Iap extends ChangeNotifier {
 
   static const String yearlyId = 'rutin_pro_yearly';
 
-  /// Tek seferlik "ömür boyu" satın alma (abonelik DEĞİL — non-consumable).
-  /// Abonelik istemeyen segmenti ve peşin nakit akışını yakalar.
-  /// App Store Connect ve Play Console'da bu kimlikle OLUŞTURULMALI:
-  ///   • App Store: Non-Consumable
-  ///   • Play: Tek seferlik ürün (in-app product)
-  /// Mağazada tanımlı değilse ürün listesine hiç düşmez ve UI'da
-  /// otomatik olarak gizlenir (bkz. paywall_screen.dart).
-  static const String lifetimeId = 'rutin_pro_lifetime';
+  /// ARTIK SATILMAYAN tek seferlik "ömür boyu" ürünü.
+  ///
+  /// Ürün üründen kaldırıldı: paywall'da gösterilmiyor, [_ids] içinde
+  /// sorgulanmıyor, satın alınamıyor.
+  ///
+  /// Kimlik yine de BURADA DURUYOR ve bu kasıtlı: Play Console'da ürün
+  /// tanımlıydı ve satın alma testi yapıldı. Daha önce satın almış biri
+  /// "Satın Alımları Geri Yükle" dediğinde işlem `purchaseStream`'e düşer.
+  /// [kindOf] bu kimliği tanımazsa makbuz ABONELİK olarak doğrulanır —
+  /// tek seferlik üründe karşılığı olmayan bir sorgu olduğu için doğrulama
+  /// başarısız olur ve kullanıcı ÖDEDİĞİ Pro'yu kaybeder.
+  ///
+  /// Yani bu satır bir kalıntı değil, ödemiş kullanıcı için emniyet kemeri.
+  static const String legacyLifetimeId = 'rutin_pro_lifetime';
 
   // monthlyId platforma bağlı olduğu için _ids const olamaz.
   //
   // iOS'ta aylık kimliğin İKİ varyantı da sorgulanır (bkz.
   // _iosMonthlyCandidates); mağaza hangisini tanıyorsa onu döndürür,
   // tanımadığı notFoundIDs'e düşer ve diğer ürünleri etkilemez.
+  //
+  // Ömür boyu ürünü BİLEREK sorgulanmıyor — satıştan kaldırıldı.
   static Set<String> get _ids => {
         if (_isIos) ..._iosMonthlyCandidates else _androidMonthlyId,
         yearlyId,
-        lifetimeId,
       };
 
   /// Bir ürün kimliğinin doğrulama tipi: `'lifetime'` (tek seferlik,
   /// non-consumable) ya da `'subscription'` (otomatik yenilenen).
   ///
-  /// Bu ayrım gelir açısından kritikti: sunucu tarafı doğrulama HER ürünü
-  /// abonelik sanıp Play'in `purchases/subscriptions` uç noktasını ve
-  /// Apple'ın `expires_date_ms` alanını kullanıyordu. Tek seferlik üründe
-  /// ikisi de karşılığı olmayan sorgular olduğu için doğrulama HER ZAMAN
-  /// başarısız oluyordu: kullanıcı "Ömür Boyu" planı satın alıp parasını
-  /// ödüyor, ardından "Satın alma doğrulanamadı" hatası alıyor ve Pro asla
-  /// açılmıyordu.
+  /// Bu ayrım gelir açısından kritik: sunucu tarafı doğrulama HER ürünü
+  /// abonelik sanarsa Play'in `purchases/subscriptions` uç noktasını ve
+  /// Apple'ın `expires_date_ms` alanını kullanır. Tek seferlik üründe ikisi
+  /// de karşılığı olmayan sorgular olduğu için doğrulama HER ZAMAN
+  /// başarısız olur: kullanıcı parasını öder, "Satın alma doğrulanamadı"
+  /// hatası alır ve Pro açılmaz.
+  ///
+  /// Ömür boyu ürünü artık SATILMIYOR ama kimlik burada hâlâ tanınıyor:
+  /// daha önce satın almış birinin geri yüklemesi doğru uç noktadan
+  /// doğrulansın diye (bkz. [legacyLifetimeId]).
   static String kindOf(String productId) =>
-      productId == lifetimeId ? 'lifetime' : 'subscription';
+      productId == legacyLifetimeId ? 'lifetime' : 'subscription';
 
   /// Yapılandırılmamış durumu temsil eden varsayılan (sahte) adres.
   ///

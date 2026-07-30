@@ -127,7 +127,10 @@ void main() {
           reason: 'Aylık kimlik adayları listesi kaldırılmış. Mağazadaki '
               'kimlik değişirse kod sessizce ürün bulamaz.');
       expect(iap.contains("'rutin_pro_yearly'"), isTrue);
-      expect(iap.contains("'rutin_pro_lifetime'"), isTrue);
+      // Ömür boyu ürünü satıştan kaldırıldı; kimlik yalnızca eski
+      // alıcıların geri yüklemesi için duruyor (bkz. legacyLifetimeId).
+      expect(iap.contains('legacyLifetimeId'), isTrue,
+          reason: 'eski alıcıların geri yükleme koruması kaldırılmış');
     });
   });
 

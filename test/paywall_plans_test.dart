@@ -13,6 +13,9 @@
 //
 // Buradaki testler o davranışın geri gelmesini engeller: eksik ürün
 // gizlenir, gelen ürünler satılabilir kalır.
+//
+// NOT: Ömür boyu ürünü üründen tamamen kaldırıldı; paywall artık yalnızca
+// yıllık ve aylık aboneliği satıyor.
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,14 +24,13 @@ import 'package:rutin/ui/paywall_screen.dart';
 
 void main() {
   group('resolvePaywallPlans — eksik ürün tüm ekranı kilitlemez', () {
-    test('üç ürün de gelirse üçü de gösterilir', () {
+    test('iki plan da gelirse ikisi de gösterilir', () {
       final r = resolvePaywallPlans(
         hasYearly: true,
         hasMonthly: true,
-        hasLifetime: true,
         currentSelection: Iap.yearlyId,
       );
-      expect(r.plans, hasLength(3));
+      expect(r.plans, [Iap.yearlyId, Iap.monthlyId]);
       expect(r.selected, Iap.yearlyId);
     });
 
@@ -38,7 +40,6 @@ void main() {
       final r = resolvePaywallPlans(
         hasYearly: true,
         hasMonthly: false,
-        hasLifetime: false,
         currentSelection: Iap.yearlyId,
       );
       expect(r.plans, [Iap.yearlyId],
@@ -52,23 +53,11 @@ void main() {
       final r = resolvePaywallPlans(
         hasYearly: false,
         hasMonthly: true,
-        hasLifetime: false,
         currentSelection: Iap.yearlyId,
       );
       expect(r.plans, [Iap.monthlyId]);
       expect(r.selected, Iap.monthlyId,
           reason: 'gelmeyen ürün seçili bırakılamaz');
-    });
-
-    test('yalnızca ömür boyu gelirse o seçilir', () {
-      final r = resolvePaywallPlans(
-        hasYearly: false,
-        hasMonthly: false,
-        hasLifetime: true,
-        currentSelection: Iap.yearlyId,
-      );
-      expect(r.plans, [Iap.lifetimeId]);
-      expect(r.selected, Iap.lifetimeId);
     });
 
     test('geçerli bir seçim varsa DEĞİŞTİRİLMEZ', () {
@@ -77,7 +66,6 @@ void main() {
       final r = resolvePaywallPlans(
         hasYearly: true,
         hasMonthly: true,
-        hasLifetime: false,
         currentSelection: Iap.monthlyId,
       );
       expect(r.selected, Iap.monthlyId);
@@ -87,7 +75,6 @@ void main() {
       final r = resolvePaywallPlans(
         hasYearly: false,
         hasMonthly: false,
-        hasLifetime: false,
         currentSelection: Iap.yearlyId,
       );
       expect(r.plans, isEmpty);
@@ -95,14 +82,29 @@ void main() {
       expect(r.selected, Iap.yearlyId);
     });
 
-    test('plan sırası korunur: yıllık, aylık, ömür boyu', () {
+    test('plan sırası korunur: önce yıllık, sonra aylık', () {
+      // Sıra bilinçli: yıllık plan varsayılan ve en yüksek LTV'li olan.
       final r = resolvePaywallPlans(
         hasYearly: true,
         hasMonthly: true,
-        hasLifetime: true,
         currentSelection: Iap.yearlyId,
       );
-      expect(r.plans, [Iap.yearlyId, Iap.monthlyId, Iap.lifetimeId]);
+      expect(r.plans.first, Iap.yearlyId);
+    });
+  });
+
+  group('Ömür boyu ürünü satıştan kaldırıldı ama geri yükleme korunuyor', () {
+    // Play Console'da bu ürün tanımlıydı ve satın alma testi yapıldı. Daha
+    // önce satın almış biri "Geri Yükle" dediğinde makbuz DOĞRU uç noktadan
+    // doğrulanmalı; aksi halde ödediği Pro'yu kaybeder.
+    test('eski ömür boyu kimliği hâlâ "lifetime" olarak doğrulanır', () {
+      expect(Iap.kindOf(Iap.legacyLifetimeId), 'lifetime');
+      expect(Iap.legacyLifetimeId, 'rutin_pro_lifetime');
+    });
+
+    test('abonelikler etkilenmedi', () {
+      expect(Iap.kindOf(Iap.yearlyId), 'subscription');
+      expect(Iap.kindOf(Iap.monthlyId), 'subscription');
     });
   });
 }

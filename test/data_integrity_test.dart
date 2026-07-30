@@ -4,8 +4,7 @@
 // gerçek hatayı kalıcı olarak kilitler:
 //   1. Geçici bir ağ hatasının bulut verisini silmesi (LoadResult ayrımı).
 //   2. Tek bozuk bir alanın, kendisinden sonraki tüm alanları düşürmesi.
-//   3. Tek seferlik ("ömür boyu") ürünün abonelik gibi doğrulanmaya
-//      çalışılması — ödeme alınıp Pro'nun hiç açılmaması.
+//   3. Ürün tipinin yanlış belirlenmesi — ödeme alınıp Pro'nun hiç açılmaması.
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -149,10 +148,6 @@ void main() {
     // Ömür boyu ürün abonelik gibi doğrulanınca (Play'de subscriptions uç
     // noktası, Apple'da expires_date_ms) doğrulama HER ZAMAN başarısız
     // oluyordu: kullanıcı ödüyor, Pro açılmıyordu.
-    test('ömür boyu ürün "lifetime" olarak işaretlenir', () {
-      expect(Iap.kindOf(Iap.lifetimeId), 'lifetime');
-    });
-
     test('abonelikler "subscription" olarak işaretlenir', () {
       expect(Iap.kindOf(Iap.yearlyId), 'subscription');
       expect(Iap.kindOf(Iap.monthlyId), 'subscription');

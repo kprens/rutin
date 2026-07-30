@@ -27,13 +27,11 @@ import 'rutin_ui.dart';
 ({List<String> plans, String selected}) resolvePaywallPlans({
   required bool hasYearly,
   required bool hasMonthly,
-  required bool hasLifetime,
   required String currentSelection,
 }) {
   final plans = <String>[
     if (hasYearly) Iap.yearlyId,
     if (hasMonthly) Iap.monthlyId,
-    if (hasLifetime) Iap.lifetimeId,
   ];
   // Seçili plan gelmediyse seçimi gelen ilk plana taşı: aksi halde hiçbir
   // kart seçili görünmez ve satın alma butonu var olmayan bir ürünü hedefler.
@@ -249,7 +247,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     // yükleniyor durumu gösterilir.
                     final yearly = Iap.instance.productFor(Iap.yearlyId);
                     final monthly = Iap.instance.productFor(Iap.monthlyId);
-                    final lifetime = Iap.instance.productFor(Iap.lifetimeId);
 
                     // EN AZ BİR plan geldiyse ekran çalışır.
                     //
@@ -268,8 +265,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     // Kısmi gösterim güvenli: fiyat HER ZAMAN mağazadan
                     // gelen gerçek değer, satın alma da yalnızca gösterilen
                     // ürün için başlatılabiliyor.
-                    final ready =
-                        yearly != null || monthly != null || lifetime != null;
+                    final ready = yearly != null || monthly != null;
                     if (!ready) {
                       // BEKLEME ile BAŞARISIZLIK farklı şeylerdir; eskiden
                       // ikisi de aynı sonsuz "yükleniyor" göstergesine
@@ -303,7 +299,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     _selectedId = resolvePaywallPlans(
                       hasYearly: yearly != null,
                       hasMonthly: monthly != null,
-                      hasLifetime: lifetime != null,
                       currentSelection: _selectedId,
                     ).selected;
 
@@ -326,18 +321,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
                             price: monthly.price,
                             subtitle: t('her ay yenilenir', 'billed monthly'),
                           ),
-                        // Ömür boyu yalnızca mağazada gerçekten tanımlıysa
-                        // gösterilir; tanımsızsa sessizce gizlenir.
-                        if (lifetime != null) ...[
-                          const SizedBox(height: 10),
-                          _planCard(
-                            id: Iap.lifetimeId,
-                            title: t('Ömür Boyu', 'Lifetime'),
-                            price: lifetime.price,
-                            subtitle: t('tek seferlik ödeme, abonelik yok',
-                                'one-time payment, no subscription'),
-                          ),
-                        ],
                         const SizedBox(height: 18),
                         if (pending)
                           Padding(
@@ -351,15 +334,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           RButton(_ctaLabel(), onTap: () => _buy(context)),
                         const SizedBox(height: 10),
                         Text(
-                            _selectedId == Iap.lifetimeId
-                                ? t('Tek seferlik ödeme · kalıcı erişim',
-                                    'One-time payment · permanent access')
-                                : t('İstediğin an iptal edebilirsin',
-                                    'Cancel anytime'),
+                            t('İstediğin an iptal edebilirsin',
+                                'Cancel anytime'),
                             textAlign: TextAlign.center,
                             style: TextStyle(color: RC.muted, fontSize: 13)),
                         const SizedBox(height: 14),
-                        _subscriptionDisclosure(yearly, monthly, lifetime),
+                        _subscriptionDisclosure(yearly, monthly),
                         const SizedBox(height: 18),
                         GestureDetector(
                           onTap: () {
@@ -458,14 +438,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
   /// iade + tek yıldız bırakır; şeffaflık uzun vadede dönüşümü DÜŞÜRMEZ,
   /// iade ve churn'ü düşürür.
   Widget _subscriptionDisclosure(
-      ProductDetails? yearly, ProductDetails? monthly, ProductDetails? lifetime) {
+      ProductDetails? yearly, ProductDetails? monthly) {
     final String text;
-    if (_selectedId == Iap.lifetimeId) {
-      final price = lifetime?.price ?? '';
-      text = t(
-          '$price tek seferlik olarak tahsil edilir. Abonelik değildir, otomatik yenilenmez.',
-          '$price is charged once. This is not a subscription and does not renew.');
-    } else if (_selectedId == Iap.yearlyId) {
+    if (_selectedId == Iap.yearlyId) {
       final price = yearly?.price ?? '';
       text = kYearlyHasIntroTrial
           ? t(
@@ -567,9 +542,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   /// Seçili plana göre ana buton metni.
   String _ctaLabel() {
-    if (_selectedId == Iap.lifetimeId) {
-      return t('Ömür Boyu Satın Al', 'Buy Lifetime');
-    }
     // Deneme yalnızca YILLIK planda sunulur (bkz. ABONELIK-STRATEJISI.md):
     // deneme maliyetini en yüksek LTV'li plana yönlendirmek standart ve
     // sağlıklı bir yaklaşımdır.
