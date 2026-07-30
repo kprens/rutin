@@ -261,3 +261,93 @@ kaybettiren hataları kilitliyor. Ekran/widget testleri ve satın alma akışın
 uçtan uca testi hâlâ yok — Faz 6'da kalan risk olarak raporlanacak.
 
 **Durum:** ✅ Uygulandı (süregiden iş olarak devam etmeli)
+
+---
+
+## SAHA VERİSİ TRİYAJI — Sentry (2026-07-31)
+
+Sentry API'ye salt-okunur token ile bağlanıldı; 8 açık kayıt tek tek incelendi.
+Bu bölümün değeri, denetimin varsayım yerine **sahadan gelen kanıtla**
+çalışabilmesi: iki teori çürütüldü, bir gerçek çökme bulundu.
+
+### Canlı olan (build 17'de aktif)
+
+| Kayıt | Başlık | Olay/Kullanıcı | Durum |
+|---|---|---|---|
+| RUTIN-4 | Mağaza hiç ürün döndürmedi | 21 / 13 | Açık — mağaza tarafı |
+| RUTIN-8 | Mağaza katmanı kullanılamıyor (isAvailable=false) | 1 / 1 | Açık — RUTIN-4 ile aynı cihaz |
+
+### Kapatılabilir (kod düzeltmesi sonrası hiç görülmedi)
+
+| Kayıt | Son görülen build | Neden ölü |
+|---|---|---|
+| RUTIN-1 | 8 | Bildirim ikonu kaynağı eklendi |
+| RUTIN-2 | 10 | Bildirim ikonu kaynağı eklendi |
+| RUTIN-3 | 13 | Açılış zaman aşımı; 8sn'lik zincir kırıldı |
+| RUTIN-5 | 14 | 5sn zaman aşımı |
+| RUTIN-7 | 13 | Çevrimdışı DNS — artık breadcrumb, olay değil |
+| RUTIN-6 | 13 | **Bu oturumda kökten düzeltildi** (aşağıda) |
+
+> Token salt-okunur (`event:write` kapsamı yok), bu yüzden kayıtlar Sentry
+> panelinden elle kapatılmalı. Nüksederse Sentry regresyon olarak yeniden açar.
+
+### Çürütülen teori: RUTIN-4 bir ürün kimliği sorunu DEĞİL
+
+Aylık aboneliğin App Store'daki sondaki noktası (`rutin_pro_monthly_v2.`)
+2.1(b) reddinin sebebiydi ve düzeltildi — ama RUTIN-4'ün sebebi o değil.
+`notFound` etiketi her olayda sorulan kimliklerin **tamamını** içeriyor:
+
+```
+Android 19/21 : rutin_pro_monthly, rutin_pro_yearly, rutin_pro_lifetime
+iOS       2/21 : rutin_pro_monthly_v2, rutin_pro_yearly, rutin_pro_lifetime
+```
+
+Listede `rutin_pro_yearly` de var — satın alma testi yapılmış, çalıştığı
+bilinen ürün. Tek bir kimliğin yazımı bunu açıklayamaz; mağaza sorulan
+**hiçbir** ürünü tanımıyor.
+
+Ölçek de sanıldığından küçük: 19 Android olayının tamamı **tek bir cihaz
+modelinden** (OnePlus 8 Pro) geliyor. 13 "kullanıcı" bu tek modele sıkışmış —
+mağazaya hiç erişemeyen bir test/lab cihazı profili.
+
+`iap_no_products` olayına `queried` ve `allMissing` etiketleri eklendi
+([lib/iap.dart](../lib/iap.dart)); build 18'den itibaren "mağaza sorulan her
+şeyi reddetti" ile "bazılarını tanıdı ama liste boş" ayrımı doğrudan okunacak.
+
+### Bulunan gerçek çökme: RUTIN-6 (ölümcül, Android 16)
+
+Bu kayıt "eski" görünüyordu çünkü yalnızca build 13'te vardı — ama düzeldiği
+için değil, o cihazdaki tek kullanıcı güncellemediği için.
+
+```
+RuntimeException: Unable to start receiver HabitWidgetProvider
+→ IllegalArgumentException: pendingIntentBackgroundActivityStartMode
+  must not be set when creating a PendingIntent
+```
+
+Kök neden bizim kodumuzda değil, `home_widget` 0.6.0'da: `HomeWidgetIntent.kt`
+SDK 34+ için PendingIntent'i `pendingIntentBackgroundActivityStartMode` ile
+oluşturuyor ve SDK 35 ayrımı yapmıyor. Android 15+ bu alanın **oluşturma**
+anında verilmesini reddediyor.
+
+Zaman çizelgesi önemli — ara düzeltme yeterli sanılabilirdi:
+
+- **build 13** → try/catch yoktu, uygulama ölümcül çöküyordu
+- **build 14/17** → try/catch eklendi, çökme durdu **ama** istisna
+  `updateAppWidget`'tan önce atıldığı için widget Android 15/16'da sessizce
+  hiç çizilmiyordu — yani özellik ölüydü, gürültüsüzce
+- **build 18** → paket yükseltildi, widget güncel Android'de gerçekten çalışıyor
+
+### Sürüm seçimi: neden 0.9.3 değil de 0.7.0+1
+
+İlk yükseltme `^0.9.3`'e yapıldı; analiz, 104 test ve APK yeşil geçti — ama
+`flutter build ios` **başarısız** oldu: 0.9.3 iOS 14 asgarisi istiyor,
+uygulamanın hedefi iOS 13.
+
+Değişiklik günlüğü taranarak çökmeyi düzelten **en erken** sürüm bulundu:
+`0.7.0+1` — *"FIX: Runtime error when starting App from Widget on Android 15
+(#330)"*. Kaynak doğrulandı: `SDK_INT >= 35` dalı 0.9.3'tekiyle birebir aynı.
+0.7.0'ın kırıcı değişikliği yok; iOS asgarisi 11'de kalıyor.
+
+iOS asgari sürümünü 14'e çekmek ayrı ve kullanıcıya dokunan bir karar —
+gönderim sırasında değil, bilinçli olarak alınmalı.
