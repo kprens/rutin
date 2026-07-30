@@ -319,11 +319,34 @@ class Iap extends ChangeNotifier {
       // ID uyuşmuyor, ürün reddedilmiş durumda). Kullanıcı satın alamaz,
       // yani doğrudan gelir kaybı — sessiz kalmamalı.
       if (products.isEmpty) {
+        // Sahadaki ilk 21 olayda `notFound` HER SEFERİNDE sorulan kimliklerin
+        // TAMAMINI içeriyordu — `rutin_pro_yearly` dahil, yani satın alma
+        // testi yapılmış ve çalıştığı bilinen ürün de "yok" dönüyordu.
+        // Buradan çıkan sonuç önemli: sorun tek bir kimliğin yazımında
+        // (iOS'taki sondaki nokta) DEĞİL; mağaza sorulan hiçbir ürünü
+        // tanımıyor.
+        //
+        // Bu iki durumu ayırt edebilmek için `allMissing` gerekiyor:
+        //   true  → mağaza cevap verdi ve sorulan her kimliği reddetti.
+        //           Kimlik yazımı sorunu değil, mağaza tarafında DURUM
+        //           sorunu: Play'de base plan aktif değil, uygulama o hesap
+        //           için o kanalda yayında değil, Paid Apps sözleşmesi
+        //           onaylı değil, ya da derleme mağazadan yüklenmemiş.
+        //   false → bazı kimlikler tanındı ama liste yine boş; bambaşka ve
+        //           çok daha nadir bir hata sınıfı.
+        //
+        // `queried` olmadan `notFound` tek başına yorumlanamıyordu: neyin
+        // eksik olduğunu görüyorduk ama neyin SORULDUĞUNU görmüyorduk.
+        final queried = _ids.toList();
         reportError(
           StateError('Mağaza hiç ürün döndürmedi'),
           StackTrace.current,
           op: 'iap_no_products',
-          tags: {'notFound': resp.notFoundIDs.join(',')},
+          tags: {
+            'notFound': resp.notFoundIDs.join(','),
+            'queried': queried.join(','),
+            'allMissing': '${resp.notFoundIDs.toSet().containsAll(queried)}',
+          },
         );
       }
     } catch (e, st) {
