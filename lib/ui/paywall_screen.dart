@@ -11,6 +11,38 @@ import '../legal.dart';
 import '../store.dart';
 import 'rutin_ui.dart';
 
+/// Mağazadan GELEN ürünlere göre gösterilecek planları ve geçerli seçimi
+/// belirler. Saf fonksiyon — UI'ya, platforma ve ağa bağlı değil.
+///
+/// NEDEN AYRI: Eskiden bu karar `build()` içinde satır içindeydi ve koşul
+/// `yearly != null && monthly != null` idi — yani İKİSİ birden gerekiyordu.
+/// Tek bir ürün mağazadan gelmediğinde paywall TAMAMEN kapanıyordu; yıllık
+/// plan sorunsuz gelse bile kullanıcı hiçbir şey satın alamıyordu. App Store
+/// bunu "an error is shown when trying to access the in-app purchases"
+/// diyerek 2.1(b) altında reddetti.
+///
+/// UI içinde kaldığı sürece bu davranışın testi de yazılamıyordu; buraya
+/// taşınması onu doğrulanabilir kıldı.
+@visibleForTesting
+({List<String> plans, String selected}) resolvePaywallPlans({
+  required bool hasYearly,
+  required bool hasMonthly,
+  required bool hasLifetime,
+  required String currentSelection,
+}) {
+  final plans = <String>[
+    if (hasYearly) Iap.yearlyId,
+    if (hasMonthly) Iap.monthlyId,
+    if (hasLifetime) Iap.lifetimeId,
+  ];
+  // Seçili plan gelmediyse seçimi gelen ilk plana taşı: aksi halde hiçbir
+  // kart seçili görünmez ve satın alma butonu var olmayan bir ürünü hedefler.
+  final selected = plans.isEmpty || plans.contains(currentSelection)
+      ? currentSelection
+      : plans.first;
+  return (plans: plans, selected: selected);
+}
+
 class PaywallScreen extends StatefulWidget {
   /// Paywall'ın NEREDEN açıldığı — ölçümün en değerli tek parametresi.
   ///
@@ -194,9 +226,25 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     final monthly = Iap.instance.productFor(Iap.monthlyId);
                     final lifetime = Iap.instance.productFor(Iap.lifetimeId);
 
-                    // Abonelikler (aylık + yıllık) mağazadan gelmeden fiyat
-                    // gösterip satın almaya izin vermeyiz.
-                    final ready = yearly != null && monthly != null;
+                    // EN AZ BİR plan geldiyse ekran çalışır.
+                    //
+                    // Eskiden koşul `yearly != null && monthly != null` idi:
+                    // İKİSİ birden gerekiyordu. Sahada bu, tek bir ürünün
+                    // mağazadan gelmemesi hâlinde paywall'ın TAMAMEN
+                    // kapanmasına yol açtı — yıllık plan sorunsuz gelse bile
+                    // kullanıcı hiçbir şey satın alamıyordu. App Store da
+                    // bunu "an error is shown when trying to access the
+                    // in-app purchases" diyerek 2.1(b) altında reddetti.
+                    //
+                    // Doğru davranış: gelen planları göster, gelmeyeni gizle
+                    // (ömür boyu ürünü için zaten böyle yapılıyordu). Hiçbir
+                    // plan gelmediyse hata durumuna düş.
+                    //
+                    // Kısmi gösterim güvenli: fiyat HER ZAMAN mağazadan
+                    // gelen gerçek değer, satın alma da yalnızca gösterilen
+                    // ürün için başlatılabiliyor.
+                    final ready =
+                        yearly != null || monthly != null || lifetime != null;
                     if (!ready) {
                       // BEKLEME ile BAŞARISIZLIK farklı şeylerdir; eskiden
                       // ikisi de aynı sonsuz "yükleniyor" göstergesine
@@ -225,22 +273,34 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       return _plansUnavailable(context);
                     }
 
+                    // Hangi planlar gösterilecek ve seçim geçerli mi
+                    // (bkz. resolvePaywallPlans — saf ve test edilmiş).
+                    _selectedId = resolvePaywallPlans(
+                      hasYearly: yearly != null,
+                      hasMonthly: monthly != null,
+                      hasLifetime: lifetime != null,
+                      currentSelection: _selectedId,
+                    ).selected;
+
                     return Column(
                       children: [
-                        _planCard(
-                          id: Iap.yearlyId,
-                          title: t('Yıllık', 'Yearly'),
-                          price: yearly.price,
-                          subtitle: _yearlySubtitle(),
-                          badge: t('EN AVANTAJLI', 'BEST VALUE'),
-                        ),
-                        const SizedBox(height: 10),
-                        _planCard(
-                          id: Iap.monthlyId,
-                          title: t('Aylık', 'Monthly'),
-                          price: monthly.price,
-                          subtitle: t('her ay yenilenir', 'billed monthly'),
-                        ),
+                        if (yearly != null) ...[
+                          _planCard(
+                            id: Iap.yearlyId,
+                            title: t('Yıllık', 'Yearly'),
+                            price: yearly.price,
+                            subtitle: _yearlySubtitle(),
+                            badge: t('EN AVANTAJLI', 'BEST VALUE'),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        if (monthly != null)
+                          _planCard(
+                            id: Iap.monthlyId,
+                            title: t('Aylık', 'Monthly'),
+                            price: monthly.price,
+                            subtitle: t('her ay yenilenir', 'billed monthly'),
+                          ),
                         // Ömür boyu yalnızca mağazada gerçekten tanımlıysa
                         // gösterilir; tanımsızsa sessizce gizlenir.
                         if (lifetime != null) ...[
