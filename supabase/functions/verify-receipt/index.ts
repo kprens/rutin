@@ -69,6 +69,42 @@ Deno.serve(async (req) => {
     return json({ valid: false, error: "missing_fields" }, 400);
   }
 
+  // ---- Kim doğrulama istiyor? (denetim bulgusu SEC-001, 1. aşama) ----
+  //
+  // Uç nokta kimlik doğrulamasız (`--no-verify-jwt`) ve gelen makbuz hiçbir
+  // kullanıcıya bağlanmıyor. Kalıcı çözüm, entitlement'ı sunucuda tutmak;
+  // ilk adım isteği yapanı KAYDA GEÇİRMEK.
+  //
+  // GERİYE DÖNÜK UYUMLULUK ZORUNLU — token YOKSA istek REDDEDİLMEZ.
+  // Sahada token göndermeyen sürümler var (build 16 ve öncesi). Burada
+  // `Authorization` zorunlu kılınırsa o kullanıcıların satın alması
+  // BOZULUR: para alınır, Pro açılmaz. Bu yüzden token yalnızca varsa
+  // okunur ve loglanır.
+  //
+  // SONRAKİ AŞAMA (ayrı bir iş): token gönderen sürümler sahaya
+  // yayıldıktan sonra, makbuz + user_id bir tabloya yazılıp aynı makbuzun
+  // farklı kullanıcılar için tekrar kullanılması engellenebilir.
+  const authHeader = req.headers.get("authorization") ?? "";
+  let requesterId: string | null = null;
+  if (authHeader.toLowerCase().startsWith("bearer ")) {
+    try {
+      // JWT'nin payload'ı imza doğrulanmadan OKUNUR — burada yalnızca
+      // gözlemleme amaçlı. Yetkilendirme kararı ALINMIYOR, dolayısıyla
+      // imza doğrulaması bu aşamada gerekmiyor. Yetkilendirmeye
+      // dönüştürülürse imza MUTLAKA doğrulanmalı.
+      const payload = JSON.parse(
+        atob(authHeader.slice(7).split(".")[1] ?? ""),
+      );
+      requesterId = typeof payload?.sub === "string" ? payload.sub : null;
+    } catch {
+      requesterId = null; // bozuk token: yok sayılır, istek devam eder
+    }
+  }
+  console.log(
+    `verify-receipt: source=${source} kind=${kind} product=${productId} ` +
+      `user=${requesterId ?? "anonim"}`,
+  );
+
   try {
     let valid = false;
     if (source === "google_play") {

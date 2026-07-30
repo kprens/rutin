@@ -125,6 +125,12 @@ Future<void> bootRutin() async {
       // IAP makbuz doğrulama Edge Function'ı da aynı Supabase projesinde
       // yaşar; url'i otomatik türet (bkz. iap.dart → verifyReceiptUrl).
       Iap.verifyReceiptUrl = '$_supabaseUrl/functions/v1/verify-receipt';
+      // Makbuz doğrulama isteğine oturum token'ını ekleyebilmesi için —
+      // uç nokta makbuzu kullanıcıya bağlamaya başladığında gerekecek
+      // (bkz. iap.dart → accessTokenProvider, denetim bulgusu SEC-001).
+      // `iap.dart` Supabase'e bağlanmasın diye enjeksiyonla veriliyor.
+      Iap.accessTokenProvider =
+          () => Supabase.instance.client.auth.currentSession?.accessToken;
     } catch (_) {
       auth.supabaseConfigured = false;
     }

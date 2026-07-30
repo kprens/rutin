@@ -166,6 +166,22 @@ class Iap extends ChangeNotifier {
           : 'https://play.google.com/store/account/subscriptions'
               '?package=com.alper.rutin';
 
+  /// Oturum erişim token'ını döndüren sağlayıcı — `main.dart` tarafından
+  /// enjekte edilir (bkz. [verifyReceiptUrl] ile aynı desen).
+  ///
+  /// NEDEN VAR: Makbuz doğrulama uç noktası şu anda kimlik doğrulamasız ve
+  /// gelen makbuz hiçbir kullanıcıya BAĞLANMIYOR (denetim bulgusu SEC-001).
+  /// Kalıcı çözüm sunucuda entitlement tutmak; bunun ilk adımı istemcinin
+  /// kim olduğunu söylemesi.
+  ///
+  /// Token gönderilmesi MEVCUT fonksiyonu bozmaz: bugünkü sürüm
+  /// `Authorization` başlığını yok sayıyor. Sunucu tarafı doğrulamayı
+  /// zorunlu kıldığında (ayrı bir deploy) istemci tarafı hazır olacak.
+  ///
+  /// `iap.dart` bilerek Supabase'e BAĞLANMIYOR: satın alma katmanının
+  /// kimlik sağlayıcısını bilmesi gerekmiyor, enjeksiyon bu ayrımı korur.
+  static String? Function()? accessTokenProvider;
+
   /// Doğrulama adresi gerçekten yapılandırıldı mı.
   ///
   /// `false` iken satın alma doğrulanamaz; ağ hatası gibi görünen ama
@@ -464,10 +480,19 @@ class Iap extends ChangeNotifier {
       return false;
     }
     try {
+      // Oturum token'ı VARSA gönder. Bugünkü sunucu sürümü bunu yok sayar;
+      // sunucu tarafı makbuzu kullanıcıya bağlamaya başladığında (SEC-001)
+      // istemci tarafı hazır olacak. Token yoksa (anonim kullanım) istek
+      // eskisi gibi başlıksız gider — davranış değişmez.
+      final token = accessTokenProvider?.call();
       final res = await http
           .post(
             Uri.parse(verifyReceiptUrl),
-            headers: const {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              if (token != null && token.isNotEmpty)
+                'Authorization': 'Bearer $token',
+            },
             body: jsonEncode({
               'source': p.verificationData.source, // 'app_store' | 'google_play'
               'productId': p.productID,
