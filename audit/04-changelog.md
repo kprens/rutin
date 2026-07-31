@@ -494,3 +494,77 @@ Bu bir "sonra bakarız" değil, gerekçeli bir karar:
 Kazancı sıfır, riski sıfırdan büyük ve testle görülemeyen bir değişiklik.
 Yeniden değerlendirme koşulu: paket KGP'den çıktığında ya da bizi
 etkileyen bir hata düzeltmesi geldiğinde.
+
+---
+
+## QUAL-002 — 200 satırı aşan build() metotları (2026-07-31)
+
+| Ekran | Önce | Sonra |
+|---|---:|---:|
+| friends_screen | 320 | 92 |
+| paywall_screen | 263 | 175 |
+| water_screen | 241 | 193 |
+| home_screen | 234 | 152 |
+| weekly_report_screen | 212 | 166 |
+| profile_screen | 204 | 191 |
+
+**200 satırı aşan build(): 6 → 0.**
+
+Bu tür bir bölmede asıl risk sessizce görünüm değiştirmektir; derlemenin
+geçmesi hiçbir şey kanıtlamaz. Bu yüzden her dosyada widget sayısı öncesiyle
+karşılaştırıldı. Beşi birebir aynı; `friends_screen`'de -9 ve o kasıtlı:
+gelen/gönderilen istek blokları neredeyse birebir aynıydı, ortak gövde
+tekleştirildi (ad kalınlığı ve avatar tonu farkları parametreyle korundu).
+
+**Bu kontrol gerçek bir regresyon yakaladı.** `water_screen`'de çıkarılan
+blok önce bir `Column`'a sarılmıştı. Bloğun ebeveyni `ListView` ve ListView
+çocuklarını yatayda GERER; `Column` ise varsayılan olarak ortalar — kart
+genişliğini kaybedecekti. Liste döndürülüp yayılarak özgün ağaç korundu.
+
+**Kapsam dışı:** home, water, profile, friends ve weekly report ekranları
+görsel olarak doğrulanmadı — oturum açmayı gerektiriyorlar. Doğrulanan:
+analiz, testler, widget ağacı eşitliği. Paywall ayrıca 5 duman testiyle
+davranış düzeyinde kapsanıyor.
+
+---
+
+## QUAL-001 — store.dart (1566 satır, fan-in 22) — ANALİZ EDİLDİ, YAPILMADI
+
+Bu bulgu incelendi ve **bilinçli olarak ertelendi**. Gerekçe, "sonra bakarız"
+değil; iki somut bulgu:
+
+### 1. Dosyayı bölmek sorunu çözmüyor
+
+Dart bir sınıf gövdesini dosyalara bölmeye izin vermiyor (partial class yok).
+Uygulanabilir tek mekanik yol `part` + `extension`: alanlar sınıfta kalır,
+metotlar başka dosyaya taşınır. Sonuç, durumu onu kullanan davranıştan
+ayırmak olur — dosya sayısı artar, satır sayısı düşer, **bağlılık aynı
+kalır**. Okunabilirlik net biçimde düşer. Ölçüyü (satır sayısı) iyileştirip
+sorunu (tek sınıfın çok iş yapması) olduğu gibi bırakan bir değişiklik.
+
+### 2. Fan-in'in tamamı meşru
+
+22 dosyanın hepsi gerçekten `AppState`/`Repository`/`todayKey` kullanıyor;
+kaldırılabilecek tek bir gereksiz import yok (mekanik olarak tarandı).
+Yani bağlılık yapay değil: uygulama durumu gerçekten oradan okunuyor.
+
+### Doğru çözüm ve neden şimdi değil
+
+Değerli olan versiyon **alan bazlı ayrıştırma**; en temiz aday
+arkadaş/panik kümesi:
+
+- Kendi alanları var (`myFriendCode`, `friendships`, `_sharedByFriend`,
+  `friendsLoading`, `friendsError`, panik sinyalleri).
+- **Kalıcı veriye hiç karışmıyor** — `_toMap()` içinde yoklar, buluttan
+  çekiliyorlar. Yani ayrıştırma kayıt/geri yükleme yollarına dokunmaz.
+- Yalnızca 3 dosya tüketiyor: `ui/friends_screen.dart`,
+  `ui/crisis_screen.dart`, `ui/ui_logic.dart`.
+
+Bu gerçek bir mimari değişiklik: yeni bir `ChangeNotifier`, `main.dart`'ta
+ikinci bir provider ve üç ekranın güncellenmesi. Kullanıcıya görünen hiçbir
+faydası yok, App Store gönderimi ise beklemede. Aceleye getirilecek iş
+değil.
+
+**Yeniden değerlendirme koşulu:** build 18 incelemeden geçtikten sonra, ilk
+iş olarak. `toggleSharedStreak`'in streak'lerle olan bağı ayrıca
+incelenmeli — ayrıştırmanın tek belirsiz noktası orası.
