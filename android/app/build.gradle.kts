@@ -32,9 +32,10 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.alper.rutin"
-        // google_mobile_ads 9.x en az API 23 gerektirir; flutter.minSdkVersion
-        // bazı sürümlerde 21 döndüğünden manifest birleştirme release'de
-        // başarısız olabiliyordu — bu yüzden minSdk açıkça 23'e sabitlendi.
+        // Flutter'ın varsayılanı kullanılıyor; bu sürümde 24 (derlenmiş
+        // APK'da doğrulandı: `aapt2 dump badging` → minSdkVersion:'24').
+        // google_mobile_ads 9.x en az API 23, flutter_local_notifications 21+
+        // en az API 24 istiyor — ikisi de karşılanıyor.
         minSdk = flutter.minSdkVersion
         // Google Play zorunluluğu: 31 Ağustos 2026'dan itibaren yeni uygulama
         // ve güncellemeler Android 16'yı (API 36) hedeflemek zorunda. compileSdk
