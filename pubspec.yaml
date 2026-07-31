@@ -47,6 +47,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  # Gerçek cihaz/emülatör üzerinde koşan testler (integration_test/).
+  # Platform kanallarına dokunan hatalar (bildirim ikonu, açılış zinciri)
+  # yalnızca burada görülür — birim testleri o katmanı hiç çalıştırmaz.
+  integration_test:
+    sdk: flutter
+  # Duman testleri gerçek mağazaya bağlanamaz: InAppPurchase.instance ilk
+  # erişimde Play Billing kanalına bağlanmaya çalışıp asenkron olarak
+  # patlıyor. Eklentinin kendi genişletme noktası (InAppPurchasePlatform)
+  # ile test ikizi takılıyor — bkz. test/smoke_test.dart. Tip
+  # `in_app_purchase` tarafından yeniden dışa aktarılmadığı için doğrudan
+  # bağımlılık gerekiyor.
+  in_app_purchase_platform_interface: ^1.4.1
   flutter_launcher_icons: ^0.14.1
 
 flutter:
