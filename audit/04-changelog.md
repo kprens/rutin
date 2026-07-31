@@ -451,3 +451,46 @@ kaybolurdu. Yeni `integration-android` işi gerçek emülatörde (API 34, KVM
 açık) entegrasyon testlerini çalıştırıyor.
 
 **Doğrulama:** analyze temiz · 112/112 birim+duman · 4/4 entegrasyon (API 37).
+
+---
+
+## DEVOPS-001 — Bağımlılık borcu (2026-07-31, kapanış)
+
+Ölçü olarak "en yeni sürüm" değil, **Flutter'ın kırılma uyarısı** alındı:
+KGP (Kotlin Gradle Plugin) uygulayan eklentiler. Flutter bunları ileride
+derlemeyi reddedecek; borç sessizce büyürse bir Flutter yükseltmesinde
+Android derlemesi tamamen kırılır.
+
+**KGP borcu: 7 → 5**
+
+| Paket | Karar |
+|---|---|
+| `flutter_local_notifications` 17.2.4 → 22.2.0 | ✅ yükseltildi |
+| `share_plus` 10.1.4 → 13.3.0 | ✅ yükseltildi — KGP'den çıktı |
+| `package_info_plus` → 10.2.1 | ✅ (share_plus ile geldi) — KGP'den çıktı |
+| `sentry_flutter` 9.25.0 → 9.26.0 | ✅ yama |
+| `home_widget` 0.6.0 → 0.7.0+1 | ✅ (RUTIN-6 düzeltmesi) |
+| `home_widget` → 0.9.3 | ⛔ engelli: iOS 14 asgarisi istiyor, hedef iOS 13 |
+| `intl` → 0.20.3 | ⛔ engelli: `flutter_localizations` kısıtlıyor |
+| `sign_in_with_apple` 6.1.4 → 8.1.0 | ⛔ **bilinçli yapılmadı** |
+
+### `sign_in_with_apple` neden yükseltilmedi
+
+Bu bir "sonra bakarız" değil, gerekçeli bir karar:
+
+1. **Kazanç yok.** Yükseltmenin gerekçesi KGP borcu olurdu — ama 8.1.0
+   kaynağı hâlâ `apply plugin: 'kotlin-android'` içeriyor. Listeden çıkmıyor.
+2. **Bize bir hata düzeltmiyor.** Kullandığımız iki API de değişmemiş:
+   `SignInWithApple.getAppleIDCredential` ([auth.dart:195](../lib/auth.dart))
+   ve `AuthorizationErrorCode.canceled` (auth.dart:231). 7.0.0'ın enum
+   genişletmesi eklemeli, 8.0.0'ın buton yeniden adlandırması bizi
+   ilgilendirmiyor (kendi butonumuzu kullanıyoruz).
+3. **Doğrulanamıyor.** Elimizdeki hiçbir katman Apple oturum akışını
+   çalıştıramaz: gerçek cihaz ve gerçek Apple ID gerekiyor. Bir regresyon
+   ancak kullanıcıda ortaya çıkar.
+4. **Sertifikasyon riski.** Sign in with Apple, Guideline 4.8 altında
+   ZORUNLU. Bozulursa ret sebebidir ve gönderim hemen önümüzde.
+
+Kazancı sıfır, riski sıfırdan büyük ve testle görülemeyen bir değişiklik.
+Yeniden değerlendirme koşulu: paket KGP'den çıktığında ya da bizi
+etkileyen bir hata düzeltmesi geldiğinde.
