@@ -67,7 +67,7 @@ class NotificationService {
         requestSoundPermission: false,
       ),
     );
-    await _plugin.initialize(settings);
+    await _plugin.initialize(settings: settings);
   }
 
   Future<void> requestPermission() async {
@@ -98,7 +98,11 @@ class NotificationService {
   Future<void> showNow(String title, String body) async {
     try {
       await _plugin.show(
-          DateTime.now().millisecondsSinceEpoch % 100000, title, body, _details);
+        id: DateTime.now().millisecondsSinceEpoch % 100000,
+        title: title,
+        body: body,
+        notificationDetails: _details,
+      );
     } catch (_) {
       // Bildirim gösterilemedi; uygulama akışı etkilenmez.
     }
@@ -108,19 +112,19 @@ class NotificationService {
   /// Bildirim ayarları kapatıldığında AppState buradan geçer.
   Future<void> cancelAllReminders() async {
     for (var i = 0; i < 100; i++) {
-      await _plugin.cancel(_waterIdBase + i);
+      await _plugin.cancel(id: _waterIdBase + i);
     }
     for (var i = 0; i < 200; i++) {
-      await _plugin.cancel(_calIdBase + i);
+      await _plugin.cancel(id: _calIdBase + i);
     }
     for (var i = 0; i < 10; i++) {
-      await _plugin.cancel(_eveningIdBase + i);
+      await _plugin.cancel(id: _eveningIdBase + i);
     }
     for (var i = 0; i < 8; i++) {
-      await _plugin.cancel(_weeklyIdBase + i);
+      await _plugin.cancel(id: _weeklyIdBase + i);
     }
     for (var i = 0; i < 14; i++) {
-      await _plugin.cancel(_riskIdBase + i);
+      await _plugin.cancel(id: _riskIdBase + i);
     }
   }
 
@@ -144,7 +148,7 @@ class NotificationService {
     required String streakName,
   }) async {
     for (var i = 0; i < 14; i++) {
-      await _plugin.cancel(_riskIdBase + i);
+      await _plugin.cancel(id: _riskIdBase + i);
     }
     final now = tz.TZDateTime.now(tz.local);
     // Riskli saatten 1 saat önce uyar.
@@ -158,16 +162,13 @@ class NotificationService {
           tz.TZDateTime(tz.local, day.year, day.month, day.day, alertHour, 0);
       if (at.isBefore(now)) continue;
       await _plugin.zonedSchedule(
-        _riskIdBase + id,
-        t('Yaklaşan bir pencere var', 'A tricky window is coming'),
-        t('Genelde bu saatlerde zorlanıyorsun. Planın ne? "$streakName" için hazırlıklı ol.',
+        id: _riskIdBase + id,
+        title: t('Yaklaşan bir pencere var', 'A tricky window is coming'),
+        body: t('Genelde bu saatlerde zorlanıyorsun. Planın ne? "$streakName" için hazırlıklı ol.',
             'This is usually a hard stretch for you. What\'s your plan for "$streakName"?'),
-        at,
-        _details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+        scheduledDate: at,
+        notificationDetails: _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
       id++;
     }
   }
@@ -180,7 +181,7 @@ class NotificationService {
   /// açıldığında zincir tazelendiği için hiç bitmez.
   Future<void> scheduleWeeklyReport() async {
     for (var i = 0; i < 8; i++) {
-      await _plugin.cancel(_weeklyIdBase + i);
+      await _plugin.cancel(id: _weeklyIdBase + i);
     }
     final now = tz.TZDateTime.now(tz.local);
     var id = 0;
@@ -190,16 +191,13 @@ class NotificationService {
       final at = tz.TZDateTime(tz.local, day.year, day.month, day.day, 10, 0);
       if (at.isBefore(now)) continue;
       await _plugin.zonedSchedule(
-        _weeklyIdBase + id,
-        t('📊 Haftalık raporun hazır', '📊 Your weekly report is ready'),
-        t('Geçen hafta neler başardığına bak.',
+        id: _weeklyIdBase + id,
+        title: t('📊 Haftalık raporun hazır', '📊 Your weekly report is ready'),
+        body: t('Geçen hafta neler başardığına bak.',
             'See what you pulled off last week.'),
-        at,
-        _details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+        scheduledDate: at,
+        notificationDetails: _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
       id++;
     }
   }
@@ -210,7 +208,7 @@ class NotificationService {
   /// [intervalMinutes] 0 ise tümünü iptal eder.
   Future<void> scheduleWaterReminders(int intervalMinutes) async {
     for (var i = 0; i < 100; i++) {
-      await _plugin.cancel(_waterIdBase + i);
+      await _plugin.cancel(id: _waterIdBase + i);
     }
     if (intervalMinutes <= 0) return;
 
@@ -221,15 +219,12 @@ class NotificationService {
     while (when.isBefore(horizon) && id < 100) {
       if (when.hour >= _wakeStart && when.hour < _wakeEnd) {
         await _plugin.zonedSchedule(
-          _waterIdBase + id,
-          t('💧 Su zamanı!', '💧 Water time!'),
-          t('Bir bardak su içmeyi unutma.', 'Don\'t forget to drink a glass of water.'),
-          when,
-          _details,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-        );
+          id: _waterIdBase + id,
+          title: t('💧 Su zamanı!', '💧 Water time!'),
+          body: t('Bir bardak su içmeyi unutma.', 'Don\'t forget to drink a glass of water.'),
+          scheduledDate: when,
+          notificationDetails: _details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
         id++;
       }
       when = when.add(Duration(minutes: intervalMinutes));
@@ -242,7 +237,7 @@ class NotificationService {
   /// açıldığında zincir tazelendiği için içerik güncel kalır).
   Future<void> scheduleEveningSummary(String todayBody) async {
     for (var i = 0; i < 10; i++) {
-      await _plugin.cancel(_eveningIdBase + i);
+      await _plugin.cancel(id: _eveningIdBase + i);
     }
     final now = tz.TZDateTime.now(tz.local);
     for (var offset = 0; offset < 7; offset++) {
@@ -250,20 +245,17 @@ class NotificationService {
       final at = tz.TZDateTime(tz.local, day.year, day.month, day.day, 21, 0);
       if (at.isBefore(now)) continue;
       await _plugin.zonedSchedule(
-        _eveningIdBase + offset,
-        offset == 0
+        id: _eveningIdBase + offset,
+        title: offset == 0
             ? t('🌙 Günün özeti', '🌙 Daily summary')
             : t('🌙 Gün bitmeden', '🌙 Before the day ends'),
-        offset == 0
+        body: offset == 0
             ? todayBody
             : t('Görevlerini işaretle, su hedefini tamamla — serini koru! 💪',
                 'Check off your tasks, hit your water goal — keep the streak! 💪'),
-        at,
-        _details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+        scheduledDate: at,
+        notificationDetails: _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
     }
   }
 
@@ -274,7 +266,7 @@ class NotificationService {
   Future<void> scheduleCalendarReminders(
       List<WeeklyItem> weekly, List<EventItem> events) async {
     for (var i = 0; i < 200; i++) {
-      await _plugin.cancel(_calIdBase + i);
+      await _plugin.cancel(id: _calIdBase + i);
     }
 
     final now = tz.TZDateTime.now(tz.local);
@@ -291,15 +283,12 @@ class NotificationService {
     Future<void> add(tz.TZDateTime at, String title, String body) async {
       if (at.isBefore(now) || id >= 200) return;
       await _plugin.zonedSchedule(
-        _calIdBase + id,
-        title,
-        body,
-        at,
-        _details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+        id: _calIdBase + id,
+        title: title,
+        body: body,
+        scheduledDate: at,
+        notificationDetails: _details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle);
       id++;
     }
 
