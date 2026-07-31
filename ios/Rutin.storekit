@@ -28,9 +28,9 @@
               "locale": "en_US"
             }
           ],
-          "productID": "rutin_pro_monthly_v2",
+          "productID": "rutin_pro_monthly_v3",
           "recurringSubscriptionPeriod": "P1M",
-          "referenceName": "Rutin Pro Monthly v2",
+          "referenceName": "Rutin Pro Monthly v3",
           "subscriptionGroupID": "GROUP01",
           "type": "RecurringSubscription"
         },

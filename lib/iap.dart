@@ -50,9 +50,25 @@ class Iap extends ChangeNotifier {
   /// mağaza hangisini döndürürse o kullanılıyor: kimlik ileride düzgün
   /// olanla yeniden oluşturulursa kod kendiliğinden ona geçer, iki mağaza
   /// durumunda da çalışır.
+  /// SIRA ANLAMLIDIR: mağazanın tanıdığı İLK aday kullanılır
+  /// (bkz. [resolveMonthly]).
+  ///
+  /// `rutin_pro_monthly_v3` App Store Connect'te noktalı kimliğin yerine,
+  /// aynı ayarlarla yeniden oluşturuldu ve tercih edilen kimlik odur.
+  ///
+  /// Noktalı `rutin_pro_monthly_v2.` listede KALIYOR ama ikinci sırada.
+  /// Sebebi ucuz sigorta: yeni bir abonelik kimliği üretimde servis
+  /// edilmeden önce Apple'ın onayından geçmek zorunda. v3 henüz onaylanmamış
+  /// bir anda mağaza onu döndürmezse, noktalı kimlik servis edilebiliyorsa
+  /// aylık plan yine satılabilir kalır. Maliyeti yalnızca `notFoundIDs`
+  /// içinde fazladan bir satır.
+  ///
+  /// Noktasız `rutin_pro_monthly_v2` listeden ÇIKARILDI: sahadan gelen
+  /// Sentry verisi (build 13/14, `notFound` etiketi) o kimliğin mağazada
+  /// hiç var olmadığını gösterdi — sorgulamak boşuna gürültü.
   static const List<String> _iosMonthlyCandidates = [
+    'rutin_pro_monthly_v3',
     'rutin_pro_monthly_v2.',
-    'rutin_pro_monthly_v2',
   ];
 
   static const String _androidMonthlyId = 'rutin_pro_monthly';

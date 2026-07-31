@@ -162,8 +162,8 @@ void main() {
     // Her iki varyant da abonelik olarak doğrulanmalı; 'lifetime' yoluna
     // düşerse makbuz yanlış uç noktaya sorulur ve satın alma açılmaz.
     test('noktalı ve noktasız aylık kimlik de abonelik sayılır', () {
+      expect(Iap.kindOf('rutin_pro_monthly_v3'), 'subscription');
       expect(Iap.kindOf('rutin_pro_monthly_v2.'), 'subscription');
-      expect(Iap.kindOf('rutin_pro_monthly_v2'), 'subscription');
       expect(Iap.kindOf('rutin_pro_monthly'), 'subscription');
     });
   });
@@ -299,27 +299,31 @@ void main() {
   // ekran TAMAMEN kilitleniyordu — yıllık gelse bile. Günlerce hiç kimse
   // abonelik satın alamadı.
   //
-  // Apple oluşturulmuş bir Product ID'yi değiştirmeye izin vermiyor, yani
-  // mağaza tarafında düzeltilemez. Kod iki varyantı da sorguluyor.
+  // Apple oluşturulmuş bir Product ID'yi DEĞİŞTİRMEYE izin vermiyor; çözüm
+  // ürünü temiz bir kimlikle YENİDEN OLUŞTURMAK oldu: `rutin_pro_monthly_v3`
+  // (v2 ile birebir aynı ayarlar, sondaki nokta yok). Kod aday listesini
+  // sırayla deniyor ve mağazanın tanıdığı ilkini kullanıyor — böylece
+  // geçiş için yeni sürüm çıkmak gerekmiyor.
   group('Iap.resolveMonthly — mağaza hangi kimliği tanıyorsa o', () {
+    const v3 = 'rutin_pro_monthly_v3';
     const dotted = 'rutin_pro_monthly_v2.';
-    const plain = 'rutin_pro_monthly_v2';
 
-    test('mağaza NOKTALI kimliği döndürürse o seçilir', () {
+    test('mağaza v3 kimliğini döndürürse o seçilir', () {
       expect(
-        Iap.resolveMonthly([dotted, 'rutin_pro_yearly'],
-            isIos: true, fallback: plain),
-        dotted,
+        Iap.resolveMonthly([v3, 'rutin_pro_yearly'],
+            isIos: true, fallback: dotted),
+        v3,
       );
     });
 
-    test('mağaza NOKTASIZ kimliği döndürürse o seçilir', () {
-      // İleride ürün düzgün kimlikle yeniden oluşturulursa kod
-      // kendiliğinden ona geçmeli — elle müdahale gerekmemeli.
+    test('v3 henüz servis edilmiyorsa noktalı kimliğe düşülür', () {
+      // Yeni bir abonelik kimliği üretimde servis edilmeden önce Apple
+      // onayından geçmek zorunda. O aralıkta mağaza v3'ü döndürmezse aylık
+      // plan yine de satılabilir kalmalı.
       expect(
-        Iap.resolveMonthly([plain, 'rutin_pro_yearly'],
-            isIos: true, fallback: dotted),
-        plain,
+        Iap.resolveMonthly([dotted, 'rutin_pro_yearly'],
+            isIos: true, fallback: v3),
+        dotted,
       );
     });
 
@@ -329,22 +333,23 @@ void main() {
         Iap.resolveMonthly(['rutin_pro_yearly'], isIos: true, fallback: dotted),
         dotted,
       );
-      expect(Iap.resolveMonthly([], isIos: true, fallback: plain), plain);
+      expect(Iap.resolveMonthly([], isIos: true, fallback: v3), v3);
     });
 
     test('Android her zaman kendi kimliğini kullanır', () {
       // Android'de "yanma" yaşanmadı; orijinal kimlik sağlam.
       expect(
-        Iap.resolveMonthly([dotted, plain], isIos: false, fallback: dotted),
+        Iap.resolveMonthly([v3, dotted], isIos: false, fallback: dotted),
         'rutin_pro_monthly',
       );
     });
 
-    test('her iki varyant da dönerse noktalı olan önceliklidir', () {
-      // Aday listesi sırası bilinçli: bugün mağazada geçerli olan noktalı.
+    test('her iki kimlik de dönerse v3 önceliklidir', () {
+      // Aday listesi sırası bilinçli: v3 temiz ve kalıcı kimlik; noktalı
+      // olan yalnızca onay bekleme dönemi için sigorta.
       expect(
-        Iap.resolveMonthly([plain, dotted], isIos: true, fallback: plain),
-        dotted,
+        Iap.resolveMonthly([dotted, v3], isIos: true, fallback: dotted),
+        v3,
       );
     });
   });
