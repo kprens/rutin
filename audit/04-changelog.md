@@ -383,3 +383,71 @@ fonksiyonunun API 37'de baştan sona çalıştığını gösteriyor.
 
 logcat'te `FATAL`, `Unable to start receiver`, `IllegalArgumentException`
 kaydı yok.
+
+---
+
+## TEST-002 — Uygulamayı gerçekten çalıştıran test katmanları (2026-07-31)
+
+**Boşluk:** 104 test vardı, hepsi saf mantık. `main()` ve widget ağacı hiçbir
+otomasyonda bir kez bile çalışmıyordu; CI yalnızca derliyordu. Derlenen bir
+uygulamanın açılmadan çökmesi mümkün ve bu sahada defalarca yaşandı.
+
+Yaşanan retlerin/çökmelerin hangisini hangi katman yakalar:
+
+| Olay | Birim testi | Duman testi | Entegrasyon |
+|---|---|---|---|
+| Paywall kilidi (2.1(b) reddi) | kısmen | ✅ | ✅ |
+| Bildirim ikonu (RUTIN-1/2) | ✗ | ✗ | ✅ |
+| Açılışta istisna | ✗ | ✅ | ✅ |
+| iPad genişlik sınırı (Guideline 4) | ✗ | ✅ | ✅ |
+| Widget çökmesi (RUTIN-6) | ✗ | ✗ | ✗ (Play Pre-Launch) |
+
+### Katman 1 — `test/smoke_test.dart` (8 test, emülatörsüz)
+
+Widget ağacını gerçekten kurup çizer. En zor kısım mağaza katmanıydı:
+`InAppPurchase.instance` ilk erişimde Play Billing'e bağlanmaya çalışıp
+ASENKRON patlıyor ve hata "test bittikten sonra" yüzeye çıkıp alakasız bir
+testi düşürüyordu.
+
+Kanal taklidi (pigeon codec'ine bağımlı, kırılgan) yerine eklentinin kendi
+genişletme noktası kullanıldı: hedef platform android/iOS DIŞINA çekilince
+`_getOrCreateInstance` otomatik kayıt yapmıyor ve `InAppPurchasePlatform.instance`
+dışarıdan atanabiliyor. Testler hiçbir platform kanalına dokunmuyor.
+
+İki tuzak belgelendi, çünkü ikisi de "yeşil ama boş" test üretiyordu:
+- Paywall bir `ListView` ve ListView TEMBEL — görünüm alanına girmeyen plan
+  kartlarını hiç kurmuyor, `find` bulamıyordu.
+- Widget testleri her karakteri tam kare çizen test yazı tipini kullanıyor;
+  gerçekte taşmayan satırlar testte taşıyor.
+
+### Katman 2 — `integration_test/app_boot_test.dart` (4 test, gerçek cihaz)
+
+Katman 1'in göremediği yer: Dart ile native arası. Bildirim servisi kurulumu,
+hatırlatma zamanlama, yerel depo, ilk kare.
+
+### Mutasyon doğrulaması
+
+Yeşil ama hiçbir şeyi korumayan test yazmamak için her iki katman da bilerek
+bozularak sınandı:
+
+| Geri konan hata | Sonuç |
+|---|---|
+| Paywall `ready` koşulu `\|\|` → `&&` | tam da doğru 2 duman testi düştü |
+| Bildirim ikonu var olmayan kaynağa çevrildi | `PlatformException(invalid_icon, ...)` — RUTIN-1/2'nin birebir hatası — 2 entegrasyon testi düştü |
+
+İkisi de geri alınınca 8/8 ve 4/4 geçti.
+
+> Yan bulgu: ilk mutasyon denemesi (`@mipmap/` öneki) YAKALANMADI. Sebep
+> testin zayıflığı değildi: ikon hem `mipmap-*` hem `drawable-*` altında
+> duruyor ve Android'in `getIdentifier` çağrısı `@tür/ad` biçimini
+> ayrıştırdığı için o önek bugün gerçekten çözülüyor. Test işe yaramıyor
+> sanıp geçmek yerine sebep kovalandı.
+
+### CI
+
+`analyze-and-test` duman testlerini ayrıca ve AÇIKÇA koşuyor — dosya
+silinir/yeniden adlandırılırsa build kırılsın diye; tek toplu koşuda sessizce
+kaybolurdu. Yeni `integration-android` işi gerçek emülatörde (API 34, KVM
+açık) entegrasyon testlerini çalıştırıyor.
+
+**Doğrulama:** analyze temiz · 112/112 birim+duman · 4/4 entegrasyon (API 37).
