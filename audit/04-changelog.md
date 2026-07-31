@@ -568,3 +568,80 @@ değil.
 **Yeniden değerlendirme koşulu:** build 18 incelemeden geçtikten sonra, ilk
 iş olarak. `toggleSharedStreak`'in streak'lerle olan bağı ayrıca
 incelenmeli — ayrıştırmanın tek belirsiz noktası orası.
+
+---
+
+## TEST-001 — Rozet mantığı (2026-07-31)
+
+`evaluateBadges` kullanıcının hangi başarımı kazandığına gerçek veriye
+bakarak karar veriyordu ve hiç test edilmiyordu (`ui_logic.dart` %0).
+Buradaki hata sessizdir: kullanıcı hak ettiği rozeti görmez ya da hak
+etmediğini görür; ödül döngüsü bozulur, kimse fark etmez.
+
+18 test eklendi. Eşiklerin **iki yanı** da kontrol ediliyor (9 gün yetmez /
+10 gün kazandırır) — tek yönlü test "her zaman true dönen" bir hatayı
+yakalayamaz. Ada göre eşleşen rozetlerde negatif durum da var: 300 günlük
+"Kahve" serisi "Dumansız" rozetini kazandırmamalı.
+
+| | Önce | Sonra |
+|---|---:|---:|
+| Kapsama | %16,3 | %18,1 |
+| `ui_logic.dart` | %0 | %25,5 |
+| Test sayısı | 116 | 134 |
+
+### Ürün bulgusu: "Erkenci" rozeti kazanılamıyor
+
+`EarnedBadge('🌅', 'Erkenci', …, false)` — sabit `false`. Hiçbir kullanıcı
+onu alamıyor ama arayüzde hedef olarak duruyor.
+
+Sebep veri eksikliği: tamamlama kayıtları yalnızca GÜN bazında tutuluyor
+(`doneByDate`: tarih → görev id'leri), saat yok. "Sabah 7'den önce" koşulu
+mevcut şemayla hesaplanamaz.
+
+Sessizce değiştirilmedi — ikisi de ürün kararı: rozeti kaldırmak, ya da
+tamamlama saatini kaydetmeye başlamak (şema değişikliği, buluta da yansır).
+Davranış değiştiğinde düşecek bir testle belgelendi. Diğer 29 rozet tarandı,
+sabit değer verilen başka yok.
+
+---
+
+## SEC-001 faz 2 — makbuzu kullanıcıya bağlama: ENGEL KOD DEĞİL, ZAMAN
+
+Faz 1 yapıldı: `verify-receipt` isteği yapanın kimliğini okuyup logluyor,
+ama **hiçbir yetkilendirme kararı almıyor** ve token'sız isteği reddetmiyor.
+
+Faz 2 (aynı makbuzun farklı hesaplarda kullanılmasını engellemek) şu an
+uygulanamaz ve sebebi teknik değil:
+
+> Sahada token GÖNDERMEYEN sürümler var (build 16 ve öncesi). `Authorization`
+> zorunlu kılınırsa o kullanıcıların satın alması bozulur: **para alınır,
+> Pro açılmaz.** Bu, engellemeye çalıştığımız kötüye kullanımdan çok daha
+> pahalı bir hata.
+
+### Kararı açan ölçüm
+
+Faz 1 tam da bunun için log basıyor:
+
+```
+verify-receipt: source=… kind=… product=… user=anonim
+```
+
+`user=anonim` satırları token göndermeyen (eski) sürümlerdir. Supabase →
+Edge Functions → verify-receipt loglarında bu oranı izleyin.
+
+**Uygulama koşulu:** `user=anonim` oranı ihmal edilebilir düzeye indiğinde
+(pratikte eski sürümler kullanımdan düştüğünde) faz 2 güvenle açılabilir.
+
+### Faz 2 açıldığında yapılacaklar (uygulanınca)
+
+1. JWT **imzası doğrulanmalı** — faz 1'de payload imza doğrulanmadan
+   okunuyor ve bu bilinçli, çünkü yetkilendirme kararı alınmıyor.
+   Yetkilendirmeye dönüşürse imza doğrulaması ZORUNLU olur.
+2. `receipt_hash + user_id` bir tabloya yazılıp aynı makbuzun farklı
+   kullanıcı için tekrar kullanımı reddedilmeli.
+3. Tabloya yazma **doğrulama sonucunu etkilememeli** (try/catch, ateşle-unut)
+   — yeni bir yazma hatası ödeme akışını bozmamalı.
+
+Kod şimdiden yazılıp repoda bekletilmedi: uç nokta canlı gelir yolunda ve
+burada test edilemiyor; deploy edilmeyen kod repo ile üretim arasında
+sessiz bir fark yaratır.
