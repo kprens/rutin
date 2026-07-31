@@ -53,22 +53,24 @@ class Iap extends ChangeNotifier {
   /// SIRA ANLAMLIDIR: mağazanın tanıdığı İLK aday kullanılır
   /// (bkz. [resolveMonthly]).
   ///
-  /// `rutin_pro_monthly_v3` App Store Connect'te noktalı kimliğin yerine,
-  /// aynı ayarlarla yeniden oluşturuldu ve tercih edilen kimlik odur.
+  /// Şu an tek aday var; liste yapısı yine de korunuyor çünkü kimlik
+  /// değişimini sürüm çıkmadan yapabilmeyi sağlayan mekanizma bu.
   ///
-  /// Noktalı `rutin_pro_monthly_v2.` listede KALIYOR ama ikinci sırada.
-  /// Sebebi ucuz sigorta: yeni bir abonelik kimliği üretimde servis
-  /// edilmeden önce Apple'ın onayından geçmek zorunda. v3 henüz onaylanmamış
-  /// bir anda mağaza onu döndürmezse, noktalı kimlik servis edilebiliyorsa
-  /// aylık plan yine satılabilir kalır. Maliyeti yalnızca `notFoundIDs`
-  /// içinde fazladan bir satır.
+  /// TARİHÇE — iki kimlik neden elendi:
   ///
-  /// Noktasız `rutin_pro_monthly_v2` listeden ÇIKARILDI: sahadan gelen
-  /// Sentry verisi (build 13/14, `notFound` etiketi) o kimliğin mağazada
-  /// hiç var olmadığını gösterdi — sorgulamak boşuna gürültü.
+  /// `rutin_pro_monthly_v2.` (sonunda NOKTA) App Store Connect'te yanlışlıkla
+  /// böyle oluşturulmuştu ve Apple bir Product ID'yi sonradan değiştirmiyor.
+  /// Bir süre "v3 onaylanana kadar sigorta" diye listede tutuldu; App Store
+  /// Connect'te durumunun **Developer Rejected** olduğu görülünce çıkarıldı.
+  /// O durumdaki bir ürün hiçbir koşulda servis edilmez, yani sigorta işlevi
+  /// göremez — yalnızca her sorguda `notFoundIDs`'e gürültü eklerdi.
+  ///
+  /// `rutin_pro_monthly_v2` (noktasız) hiç var olmadı: sahadan gelen Sentry
+  /// verisi (build 13/14, `notFound` etiketi) bunu doğruladı.
+  ///
+  /// Ürün temiz bir kimlikle yeniden oluşturuldu: `rutin_pro_monthly_v3`.
   static const List<String> _iosMonthlyCandidates = [
     'rutin_pro_monthly_v3',
-    'rutin_pro_monthly_v2.',
   ];
 
   static const String _androidMonthlyId = 'rutin_pro_monthly';

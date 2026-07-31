@@ -301,9 +301,11 @@ void main() {
   //
   // Apple oluşturulmuş bir Product ID'yi DEĞİŞTİRMEYE izin vermiyor; çözüm
   // ürünü temiz bir kimlikle YENİDEN OLUŞTURMAK oldu: `rutin_pro_monthly_v3`
-  // (v2 ile birebir aynı ayarlar, sondaki nokta yok). Kod aday listesini
-  // sırayla deniyor ve mağazanın tanıdığı ilkini kullanıyor — böylece
-  // geçiş için yeni sürüm çıkmak gerekmiyor.
+  // (v2 ile birebir aynı ayarlar, sondaki nokta yok). Noktalı kimliğin
+  // App Store Connect'teki durumu "Developer Rejected" — artık aday değil.
+  //
+  // Aday listesi mekanizması yine de duruyor: kimlik değişimini yeni sürüm
+  // çıkmadan yapabilmeyi sağlayan şey o.
   group('Iap.resolveMonthly — mağaza hangi kimliği tanıyorsa o', () {
     const v3 = 'rutin_pro_monthly_v3';
     const dotted = 'rutin_pro_monthly_v2.';
@@ -316,14 +318,16 @@ void main() {
       );
     });
 
-    test('v3 henüz servis edilmiyorsa noktalı kimliğe düşülür', () {
-      // Yeni bir abonelik kimliği üretimde servis edilmeden önce Apple
-      // onayından geçmek zorunda. O aralıkta mağaza v3'ü döndürmezse aylık
-      // plan yine de satılabilir kalmalı.
+    test('noktalı eski kimlik ARTIK aday değil', () {
+      // App Store Connect'te durumu "Developer Rejected" — hiçbir koşulda
+      // servis edilmez. Bir süre "v3 onaylanana kadar sigorta" diye listede
+      // tutuldu; işe yaramayacağı görülünce çıkarıldı. Mağaza onu döndürse
+      // bile kod ona geçmemeli.
       expect(
         Iap.resolveMonthly([dotted, 'rutin_pro_yearly'],
             isIos: true, fallback: v3),
-        dotted,
+        v3,
+        reason: 'satılamayan bir kimliğe geçmek aylık planı ölü gösterir',
       );
     });
 
@@ -344,9 +348,7 @@ void main() {
       );
     });
 
-    test('her iki kimlik de dönerse v3 önceliklidir', () {
-      // Aday listesi sırası bilinçli: v3 temiz ve kalıcı kimlik; noktalı
-      // olan yalnızca onay bekleme dönemi için sigorta.
+    test('ikisi birden dönse bile v3 seçilir', () {
       expect(
         Iap.resolveMonthly([dotted, v3], isIos: true, fallback: dotted),
         v3,
