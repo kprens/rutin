@@ -99,53 +99,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // ---- Rakamlar (her zaman görünür) ----
-                Row(
-                  children: [
-                    _stat(Icons.check_circle_rounded, '${r.doneCount}',
-                        t('tamamlanan', 'completed'), RC.green, RC.tintGreen),
-                    const SizedBox(width: 12),
-                    _stat(Icons.local_fire_department_rounded, '${r.cleanDays}',
-                        t('temiz gün', 'clean days'), RC.amber, RC.tintAmber),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    if (r.moneySaved > 0) ...[
-                      _stat(
-                          Icons.savings_rounded,
-                          '₺${r.moneySaved.toStringAsFixed(0)}',
-                          t('bu hafta', 'this week'),
-                          RC.teal,
-                          RC.tintTeal),
-                      const SizedBox(width: 12),
-                    ],
-                    _stat(
-                        Icons.water_drop_rounded,
-                        r.avgWaterCups.toStringAsFixed(1),
-                        t('ort. bardak/gün', 'avg cups/day'),
-                        RC.blue,
-                        RC.tintBlue),
-                  ],
-                ),
-                // Geri kazanılan süre yalnızca kullanıcı bu veriyi girdiyse
-                // anlamlı (dailyHours > 0). Hesaplanıp hiç gösterilmemesi
-                // ölü koddu — burada gösteriliyor.
-                if (r.hoursSaved > 0) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _stat(
-                          Icons.access_time_rounded,
-                          t('${r.hoursSaved.toStringAsFixed(1)} sa',
-                              '${r.hoursSaved.toStringAsFixed(1)} h'),
-                          t('geri kazanılan süre', 'time reclaimed'),
-                          RC.purpleBright,
-                          RC.tintPurple),
-                    ],
-                  ),
-                ],
+                ..._statRows(r),
                 const SizedBox(height: 18),
 
                 // ---- Derin analiz (ilk rapordan sonra Pro) ----
@@ -306,6 +260,57 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
                   color: RC.text, fontSize: 15, fontWeight: FontWeight.w700)),
         ],
       );
+
+
+  /// Haftanın rakamları. Kullanıcı ilgili veriyi girmediyse bazı satırlar
+  /// hiç görünmez (para/süre), bu yüzden liste döndürüyor.
+  List<Widget> _statRows(WeeklyReport r) => [
+        Row(
+          children: [
+            _stat(Icons.check_circle_rounded, '${r.doneCount}',
+                t('tamamlanan', 'completed'), RC.green, RC.tintGreen),
+            const SizedBox(width: 12),
+            _stat(Icons.local_fire_department_rounded, '${r.cleanDays}',
+                t('temiz gün', 'clean days'), RC.amber, RC.tintAmber),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            if (r.moneySaved > 0) ...[
+              _stat(
+                  Icons.savings_rounded,
+                  '₺${r.moneySaved.toStringAsFixed(0)}',
+                  t('bu hafta', 'this week'),
+                  RC.teal,
+                  RC.tintTeal),
+              const SizedBox(width: 12),
+            ],
+            _stat(
+                Icons.water_drop_rounded,
+                r.avgWaterCups.toStringAsFixed(1),
+                t('ort. bardak/gün', 'avg cups/day'),
+                RC.blue,
+                RC.tintBlue),
+          ],
+        ),
+        // Geri kazanılan süre yalnızca kullanıcı bu veriyi girdiyse anlamlı
+        // (dailyHours > 0). Hesaplanıp hiç gösterilmemesi ölü koddu.
+        if (r.hoursSaved > 0) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _stat(
+                  Icons.access_time_rounded,
+                  t('${r.hoursSaved.toStringAsFixed(1)} sa',
+                      '${r.hoursSaved.toStringAsFixed(1)} h'),
+                  t('geri kazanılan süre', 'time reclaimed'),
+                  RC.purpleBright,
+                  RC.tintPurple),
+            ],
+          ),
+        ],
+      ];
 
   Widget _stat(IconData icon, String big, String sub, Color color, Color tint) =>
       Expanded(

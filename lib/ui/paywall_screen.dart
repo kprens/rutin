@@ -176,42 +176,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
               rutinAppBar(context, t('Rutin Pro', 'Rutin Pro')),
               const SizedBox(height: 22),
 
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 84,
-                      height: 84,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        gradient: RG.purpleBtn,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                              color: RC.purple.withValues(alpha: 0.5),
-                              blurRadius: 30),
-                        ],
-                      ),
-                      child: const Icon(Icons.diamond_rounded, size: 40, color: Colors.white),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                        s.isPro
-                            ? t('Pro aktif 🎉', 'Pro is active 🎉')
-                            : t('Dikkatini dağıtan hiçbir şey kalmasın',
-                                'Nothing standing between you and your goal'),
-                        style: RText.h2, textAlign: TextAlign.center),
-                    const SizedBox(height: 8),
-                    Text(
-                        s.isPro
-                            ? t('Tüm özelliklerin kilidi açık.',
-                                'All features are unlocked.')
-                            : t('Reklamsız, kesintisiz bir Rutin — ve gelecek her yeni özellik.',
-                                'An ad-free, distraction-free Rutin — plus every feature to come.'),
-                        style: RText.muted, textAlign: TextAlign.center),
-                  ],
-                ),
-              ),
+              _hero(s),
               const SizedBox(height: 26),
 
               Text(t('Neler var', "What's included"), style: RText.title),
@@ -365,61 +330,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   },
                 ),
 
-              // ---- Ödüllü reklam: 4 saat ücretsiz Pro (kalıcı Pro değilse) ----
-              if (!s.isPro) ...[
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: RC.stroke)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(t('ya da', 'or'),
-                          style: TextStyle(color: RC.muted, fontSize: 13)),
-                    ),
-                    Expanded(child: Divider(color: RC.stroke)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                RCard(
-                  color: RC.tintAmber,
-                  border: RC.amber.withValues(alpha: 0.4),
-                  onTap: () => _watchRewarded(context),
-                  child: Row(
-                    children: [
-                      Icon(Icons.card_giftcard_rounded, size: 30, color: RC.amber),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                s.proTrialActive
-                                    ? t('4 Saat Daha Kazan',
-                                        'Get 4 More Hours')
-                                    : t('4 Saat Ücretsiz Pro',
-                                        '4 Hours of Pro, Free'),
-                                style: TextStyle(
-                                    color: RC.text,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 2),
-                            Text(
-                                s.proTrialActive
-                                    ? t(
-                                        'Kalan: ${_fmtRemaining(s.proTrialRemaining!)} · reklam izle, süreyi yenile',
-                                        'Left: ${_fmtRemaining(s.proTrialRemaining!)} · watch an ad to renew')
-                                    : t('Kısa bir reklam izle, tüm Pro açılsın',
-                                        'Watch a short ad to unlock all of Pro'),
-                                style: TextStyle(
-                                    color: RC.muted, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.play_circle_fill, color: RC.amber, size: 28),
-                    ],
-                  ),
-                ),
-              ],
+              // Ödüllü reklam: 4 saat ücretsiz Pro (kalıcı Pro değilse).
+              if (!s.isPro) ..._rewardedOffer(context, s),
             ],
           ),
         ),
@@ -459,6 +371,101 @@ class _PaywallScreenState extends State<PaywallScreen> {
         textAlign: TextAlign.center,
         style: TextStyle(color: RC.faint, fontSize: 11, height: 1.45));
   }
+
+  /// Ekranın üst bloğu: ikon + başlık + alt başlık. Metinler Pro durumuna
+  /// göre değişir.
+  Widget _hero(AppState s) => Center(
+        child: Column(
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: RG.purpleBtn,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                      color: RC.purple.withValues(alpha: 0.5), blurRadius: 30),
+                ],
+              ),
+              child: const Icon(Icons.diamond_rounded,
+                  size: 40, color: Colors.white),
+            ),
+            const SizedBox(height: 18),
+            Text(
+                s.isPro
+                    ? t('Pro aktif 🎉', 'Pro is active 🎉')
+                    : t('Dikkatini dağıtan hiçbir şey kalmasın',
+                        'Nothing standing between you and your goal'),
+                style: RText.h2,
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            Text(
+                s.isPro
+                    ? t('Tüm özelliklerin kilidi açık.',
+                        'All features are unlocked.')
+                    : t('Reklamsız, kesintisiz bir Rutin — ve gelecek her yeni özellik.',
+                        'An ad-free, distraction-free Rutin — plus every feature to come.'),
+                style: RText.muted,
+                textAlign: TextAlign.center),
+          ],
+        ),
+      );
+
+  /// Ödüllü reklam karşılığı 4 saatlik Pro — abonelik ALTERNATİFİ değil,
+  /// ödemeye hazır olmayan kullanıcıyı ürünle tanıştırma yolu.
+  List<Widget> _rewardedOffer(BuildContext context, AppState s) => [
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(child: Divider(color: RC.stroke)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(t('ya da', 'or'),
+                  style: TextStyle(color: RC.muted, fontSize: 13)),
+            ),
+            Expanded(child: Divider(color: RC.stroke)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        RCard(
+          color: RC.tintAmber,
+          border: RC.amber.withValues(alpha: 0.4),
+          onTap: () => _watchRewarded(context),
+          child: Row(
+            children: [
+              Icon(Icons.card_giftcard_rounded, size: 30, color: RC.amber),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        s.proTrialActive
+                            ? t('4 Saat Daha Kazan', 'Get 4 More Hours')
+                            : t('4 Saat Ücretsiz Pro', '4 Hours of Pro, Free'),
+                        style: TextStyle(
+                            color: RC.text,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    Text(
+                        s.proTrialActive
+                            ? t(
+                                'Kalan: ${_fmtRemaining(s.proTrialRemaining!)} · reklam izle, süreyi yenile',
+                                'Left: ${_fmtRemaining(s.proTrialRemaining!)} · watch an ad to renew')
+                            : t('Kısa bir reklam izle, tüm Pro açılsın',
+                                'Watch a short ad to unlock all of Pro'),
+                        style: TextStyle(color: RC.muted, fontSize: 13)),
+                  ],
+                ),
+              ),
+              Icon(Icons.play_circle_fill, color: RC.amber, size: 28),
+            ],
+          ),
+        ),
+      ];
 
   /// Gizlilik politikası + kullanım koşulları — abonelik satılan ekranda
   /// bulunması ZORUNLU (App Store 3.1.2). Uygulamada hiç yoktu.

@@ -139,7 +139,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     style: RText.muted),
                 const SizedBox(height: 20),
 
-                // ---- Arkadaştan gelen "zorlanıyorum" sinyalleri ----
                 // Her şeyin ÜSTÜNDE gösterilir: bir arkadaşın kriz anında
                 // yardım istemesi, bu ekrandaki diğer her şeyden önceliklidir.
                 for (final sig in s.panicSignals)
@@ -150,266 +149,39 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
                 // Bkz. themes_screen.dart'taki aynı not: tanıtım kartı ilk
                 // hafta gösterilmez (AppState.showPremiumPromos).
-                if (s.showPremiumPromos)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: RCard(
-                      color: RC.tintAmber,
-                      border: RC.amber.withValues(alpha: 0.3),
-                      onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const PaywallScreen(source: 'friends'))),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                                t(
-                                    'Sorumluluk Ortağı Pro\'da — ücretsizde de deneyebilirsin, sınırsız erişim için Pro\'ya geç.',
-                                    'Accountability Partner is a Pro perk — you can try it free, go Pro for unlimited access.'),
-                                style:
-                                    TextStyle(color: RC.amber, fontSize: 13)),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(Icons.chevron_right, color: RC.amber),
-                        ],
-                      ),
-                    ),
-                  ),
+                if (s.showPremiumPromos) _proPromoCard(context),
 
                 if (s.friendsLoading && friends.isEmpty && incoming.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                if (s.friendsError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: RCard(
-                      color: RC.tintPink,
-                      border: RC.red.withValues(alpha: 0.3),
-                      child: Row(
-                        children: [
-                          Expanded(
-                              child: Text(s.friendsError!,
-                                  style: TextStyle(color: RC.red))),
-                          TextButton(
-                            onPressed: () =>
-                                context.read<AppState>().loadFriends(),
-                            child: Text(t('Tekrar dene', 'Retry'),
-                                style: TextStyle(
-                                    color: RC.red, fontWeight: FontWeight.w700)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                if (s.friendsError != null) _errorCard(context, s.friendsError!),
 
-                // ---- Benim kodum ----
-                RCard(
-                  color: RC.tintPurple,
-                  border: RC.purple.withValues(alpha: 0.3),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(t('Senin kodun', 'Your code'),
-                                style: RText.muted),
-                            const SizedBox(height: 6),
-                            Text(s.myFriendCode ?? '——————',
-                                style: TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 3,
-                                    color: RC.purpleBright)),
-                          ],
-                        ),
-                      ),
-                      if (s.myFriendCode != null) ...[
-                        IconButton(
-                          tooltip: t('Kopyala', 'Copy'),
-                          icon: Icon(Icons.copy_rounded,
-                              color: RC.purpleBright),
-                          onPressed: () => _copyCode(s.myFriendCode!),
-                        ),
-                        IconButton(
-                          tooltip: t('Paylaş', 'Share'),
-                          icon: Icon(Icons.ios_share, color: RC.purpleBright),
-                          onPressed: () => SharePlus.instance.share(
-                            ShareParams(
-                              text: t(
-                                  'Rutin\'de arkadaşım ol! Kodum: ${s.myFriendCode}',
-                                  'Be my accountability partner on Rutin! My code: ${s.myFriendCode}'),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+                _myCodeCard(context, s),
                 const SizedBox(height: 20),
 
-                // ---- Kod ile ekle ----
                 Text(t('Arkadaş Ekle', 'Add Friend'), style: RText.title),
                 const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _codeCtrl,
-                        textCapitalization: TextCapitalization.characters,
-                        maxLength: 6,
-                        onSubmitted: (_) {
-                          if (!_sending) _send();
-                        },
-                        style: TextStyle(
-                            color: RC.text,
-                            letterSpacing: 2,
-                            fontWeight: FontWeight.w700),
-                        decoration: InputDecoration(
-                          counterText: '',
-                          hintText: t('Arkadaşının kodu', 'Friend\'s code'),
-                          hintStyle:
-                              TextStyle(color: RC.muted, letterSpacing: 0),
-                          filled: true,
-                          fillColor: RC.card,
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 18),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: RC.stroke),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: RC.stroke),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: RC.purple),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: _sending ? null : _send,
-                      child: Container(
-                        width: 54,
-                        height: 54,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          gradient: RG.purpleBtn,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: _sending
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2))
-                            : const Icon(Icons.arrow_forward,
-                                color: Colors.white),
-                      ),
-                    ),
-                  ],
+                _addByCodeRow(),
+
+                ..._pendingSection(
+                  title: t('Bekleyen İstekler', 'Pending Requests'),
+                  requests: incoming,
+                  trailing: _incomingActions,
+                  tint: RC.tintPurple,
+                  nameStyle: TextStyle(
+                      color: RC.text, fontWeight: FontWeight.w600),
+                ),
+                ..._pendingSection(
+                  title: t('Gönderilen İstekler', 'Sent Requests'),
+                  requests: outgoing,
+                  trailing: _outgoingActions,
+                  tint: RC.card2,
+                  // Gönderilen istekte ad KALIN DEĞİL — özgün görünüm bu.
+                  nameStyle: TextStyle(color: RC.text),
                 ),
 
-                // ---- Bekleyen istekler (gelen) ----
-                if (incoming.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  Text(t('Bekleyen İstekler', 'Pending Requests'),
-                      style: RText.title),
-                  const SizedBox(height: 12),
-                  ...incoming.map((f) {
-                    final busy = _busyIds.contains(f.id);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: RCard(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            _avatar(f.other.username, tint: RC.tintPurple),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                child: Text(f.other.username,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        color: RC.text,
-                                        fontWeight: FontWeight.w600))),
-                            if (busy)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 12),
-                                child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child:
-                                        CircularProgressIndicator(strokeWidth: 2)),
-                              )
-                            else ...[
-                              IconButton(
-                                icon: Icon(Icons.check_circle, color: RC.green),
-                                onPressed: () => _respond(f, accept: true),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.cancel, color: RC.red),
-                                onPressed: () => _respond(f, accept: false),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-
-                // ---- Gönderilen istekler ----
-                if (outgoing.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  Text(t('Gönderilen İstekler', 'Sent Requests'),
-                      style: RText.title),
-                  const SizedBox(height: 12),
-                  ...outgoing.map((f) {
-                    final busy = _busyIds.contains(f.id);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: RCard(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            _avatar(f.other.username, tint: RC.card2),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                child: Text(f.other.username,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(color: RC.text))),
-                            Text(t('Bekleniyor', 'Pending'),
-                                style:
-                                    TextStyle(color: RC.muted, fontSize: 12)),
-                            const SizedBox(width: 8),
-                            busy
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2))
-                                : TextButton(
-                                    onPressed: () => _cancelOutgoing(f),
-                                    child: Text(t('İptal Et', 'Cancel'),
-                                        style: TextStyle(color: RC.muted)),
-                                  ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-
-                // ---- Arkadaşlar ----
                 const SizedBox(height: 24),
                 Text(t('Arkadaşların', 'Your Friends'), style: RText.title),
                 const SizedBox(height: 12),
@@ -430,6 +202,239 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ),
     );
   }
+
+  /// Pro tanıtım kartı — ilk hafta gösterilmez.
+  Widget _proPromoCard(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: RCard(
+          color: RC.tintAmber,
+          border: RC.amber.withValues(alpha: 0.3),
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const PaywallScreen(source: 'friends'))),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                    t(
+                        'Sorumluluk Ortağı Pro\'da — ücretsizde de deneyebilirsin, sınırsız erişim için Pro\'ya geç.',
+                        'Accountability Partner is a Pro perk — you can try it free, go Pro for unlimited access.'),
+                    style: TextStyle(color: RC.amber, fontSize: 13)),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right, color: RC.amber),
+            ],
+          ),
+        ),
+      );
+
+  /// Arkadaş listesi yüklenemediğinde — tekrar deneme yolu ile birlikte.
+  Widget _errorCard(BuildContext context, String message) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: RCard(
+          color: RC.tintPink,
+          border: RC.red.withValues(alpha: 0.3),
+          child: Row(
+            children: [
+              Expanded(
+                  child: Text(message, style: TextStyle(color: RC.red))),
+              TextButton(
+                onPressed: () => context.read<AppState>().loadFriends(),
+                child: Text(t('Tekrar dene', 'Retry'),
+                    style: TextStyle(
+                        color: RC.red, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  /// Kullanıcının kendi davet kodu — kopyalama ve paylaşma ile.
+  Widget _myCodeCard(BuildContext context, AppState s) => RCard(
+        color: RC.tintPurple,
+        border: RC.purple.withValues(alpha: 0.3),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t('Senin kodun', 'Your code'), style: RText.muted),
+                  const SizedBox(height: 6),
+                  Text(s.myFriendCode ?? '——————',
+                      style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 3,
+                          color: RC.purpleBright)),
+                ],
+              ),
+            ),
+            if (s.myFriendCode != null) ...[
+              IconButton(
+                tooltip: t('Kopyala', 'Copy'),
+                icon: Icon(Icons.copy_rounded, color: RC.purpleBright),
+                onPressed: () => _copyCode(s.myFriendCode!),
+              ),
+              IconButton(
+                tooltip: t('Paylaş', 'Share'),
+                icon: Icon(Icons.ios_share, color: RC.purpleBright),
+                onPressed: () => SharePlus.instance.share(
+                  ShareParams(
+                    text: t(
+                        'Rutin\'de arkadaşım ol! Kodum: ${s.myFriendCode}',
+                        'Be my accountability partner on Rutin! My code: ${s.myFriendCode}'),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+
+  /// Kod girip istek gönderme satırı.
+  Widget _addByCodeRow() => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _codeCtrl,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 6,
+              onSubmitted: (_) {
+                if (!_sending) _send();
+              },
+              style: TextStyle(
+                  color: RC.text,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w700),
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: t('Arkadaşının kodu', 'Friend\'s code'),
+                hintStyle: TextStyle(color: RC.muted, letterSpacing: 0),
+                filled: true,
+                fillColor: RC.card,
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18, vertical: 18),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: RC.stroke),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: RC.stroke),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: RC.purple),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: _sending ? null : _send,
+            child: Container(
+              width: 54,
+              height: 54,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: RG.purpleBtn,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: _sending
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.arrow_forward, color: Colors.white),
+            ),
+          ),
+        ],
+      );
+
+  /// Gelen ve gönderilen istekler aynı kart düzenini paylaşıyor; yalnızca
+  /// satır sonundaki eylemler ve avatar tonu farklı. Ortak gövde burada,
+  /// farklar [trailing] ile veriliyor — iki neredeyse aynı blok yerine.
+  ///
+  /// Liste boşsa HİÇBİR ŞEY döndürmez (başlık da çıkmaz).
+  List<Widget> _pendingSection({
+    required String title,
+    required List<FriendshipView> requests,
+    required List<Widget> Function(FriendshipView f, bool busy) trailing,
+    required Color tint,
+    required TextStyle nameStyle,
+  }) {
+    if (requests.isEmpty) return const [];
+    return [
+      const SizedBox(height: 24),
+      Text(title, style: RText.title),
+      const SizedBox(height: 12),
+      ...requests.map((f) {
+        final busy = _busyIds.contains(f.id);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: RCard(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                _avatar(f.other.username, tint: tint),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Text(f.other.username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: nameStyle)),
+                ...trailing(f, busy),
+              ],
+            ),
+          ),
+        );
+      }),
+    ];
+  }
+
+  /// Gelen istek: kabul et / reddet.
+  List<Widget> _incomingActions(FriendshipView f, bool busy) => busy
+      ? const [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+          )
+        ]
+      : [
+          IconButton(
+            icon: Icon(Icons.check_circle, color: RC.green),
+            onPressed: () => _respond(f, accept: true),
+          ),
+          IconButton(
+            icon: Icon(Icons.cancel, color: RC.red),
+            onPressed: () => _respond(f, accept: false),
+          ),
+        ];
+
+  /// Gönderilen istek: bekleniyor etiketi + iptal.
+  List<Widget> _outgoingActions(FriendshipView f, bool busy) => [
+        Text(t('Bekleniyor', 'Pending'),
+            style: TextStyle(color: RC.muted, fontSize: 12)),
+        const SizedBox(width: 8),
+        if (busy)
+          const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2))
+        else
+          TextButton(
+            onPressed: () => _cancelOutgoing(f),
+            child:
+                Text(t('İptal Et', 'Cancel'), style: TextStyle(color: RC.muted)),
+          ),
+      ];
 
   /// Kullanıcı adının ilk harfini gösteren avatar — jenerik 👤 yerine.
   /// Bir arkadaşın gönderdiği "zorlanıyorum" sinyali kartı.

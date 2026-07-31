@@ -95,55 +95,7 @@ class _WaterScreenState extends State<WaterScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ---- Bardak sırası + hedef ayarı ----
-              RCard(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                child: Row(
-                  children: [
-                    Text(t('Bugün', 'Today'),
-                        style: TextStyle(color: RC.muted, fontSize: 14)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          for (var i = 0; i < goal; i++)
-                            Container(
-                              width: 20,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: i < cups ? RC.blue : RC.card2,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: RC.stroke),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text('$cups/$goal',
-                        style: TextStyle(
-                            color: RC.blue,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Hedef +/- (gerçek changeGoal)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _goalBtn(Icons.remove, () => s.changeGoal(-1)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(t('Günlük hedef: $goal bardak',
-                        'Daily goal: $goal cups'),
-                        style: TextStyle(color: RC.muted, fontSize: 13)),
-                  ),
-                  _goalBtn(Icons.add, () => s.changeGoal(1)),
-                ],
-              ),
+              ..._cupsAndGoal(s, cups: cups, goal: goal),
               const SizedBox(height: 22),
 
               Text(t('Hızlı Ekle', 'Quick Add'), style: RText.title),
@@ -263,6 +215,67 @@ class _WaterScreenState extends State<WaterScreen> {
       ),
     );
   }
+
+
+  /// Bugünün bardak sırası ve günlük hedef ayarı.
+  ///
+  /// Widget DEĞİL, liste döndürüyor: bunlar ListView'in doğrudan çocukları
+  /// ve ListView çocuklarını yatayda GERER. Araya bir Column konursa
+  /// varsayılan hizalaması (center) devreye girer ve kart genişliğini
+  /// kaybederdi.
+  List<Widget> _cupsAndGoal(AppState s,
+          {required int cups, required int goal}) =>
+      [
+          RCard(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Text(t('Bugün', 'Today'),
+                    style: TextStyle(color: RC.muted, fontSize: 14)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (var i = 0; i < goal; i++)
+                        Container(
+                          width: 20,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: i < cups ? RC.blue : RC.card2,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: RC.stroke),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text('$cups/$goal',
+                    style: TextStyle(
+                        color: RC.blue,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Hedef +/- (gerçek changeGoal)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _goalBtn(Icons.remove, () => s.changeGoal(-1)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                    t('Günlük hedef: $goal bardak', 'Daily goal: $goal cups'),
+                    style: TextStyle(color: RC.muted, fontSize: 13)),
+              ),
+              _goalBtn(Icons.add, () => s.changeGoal(1)),
+            ],
+          ),
+      ];
 
   Widget _goalBtn(IconData icon, VoidCallback onTap) => GestureDetector(
         onTap: onTap,

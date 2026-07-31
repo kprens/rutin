@@ -200,30 +200,37 @@ class ProfileScreen extends StatelessWidget {
             const WaterScreen()),
         const SizedBox(height: 24),
 
-        // ---- Sign Out ----
-        GestureDetector(
-          onTap: () => _signOut(context, s),
-          child: Container(
-            height: 56,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: RC.red.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: RC.red.withValues(alpha: 0.4)),
-            ),
-            child: Text(t('Çıkış Yap', 'Sign Out'),
-                style: TextStyle(
-                    color: RC.red, fontWeight: FontWeight.w700, fontSize: 16)),
-          ),
-        ),
+        _signOutButton(context, s),
         const SizedBox(height: 20),
         Center(
-          child: Text(t('Rutin v$kAppVersion · ❤️ ile yapıldı', 'Rutin v$kAppVersion · Made with ❤️'),
+          child: Text(
+              t('Rutin v$kAppVersion · ❤️ ile yapıldı',
+                  'Rutin v$kAppVersion · Made with ❤️'),
               style: TextStyle(color: RC.faint, fontSize: 13)),
         ),
       ],
     );
   }
+
+
+  /// Çıkış butonu — onay diyaloğu [_signOut] içinde.
+  Widget _signOutButton(BuildContext context, AppState s) => GestureDetector(
+        onTap: () => _signOut(context, s),
+        child: Container(
+          height: 56,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: RC.red.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: RC.red.withValues(alpha: 0.4)),
+          ),
+          child: Text(t('Çıkış Yap', 'Sign Out'),
+              style: TextStyle(
+                  color: RC.red,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16)),
+        ),
+      );
 
   Future<void> _signOut(BuildContext context, AppState s) async {
     final ok = await rConfirm(context,

@@ -37,7 +37,6 @@ class HomeScreen extends StatelessWidget {
     final goalL = s.water.goal * 0.25;
     final bestStreak = s.maxHabitStreak;
     final cleanDays = longestCleanStreak(s.streaks);
-    final dailyQuote = quoteOfTheDay();
     // Sık kaçırılan alışkanlık için "hedefi küçültelim mi?" önerisi
     // (bkz. _adaptiveCard). Bir kez hesaplanır.
     final adaptive = s.adaptiveSuggestion();
@@ -85,71 +84,7 @@ class HomeScreen extends StatelessWidget {
         ),
         const SizedBox(height: 22),
 
-        // ---- İlerleme kartı ----
-        RCard(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              ProgressRing(
-                value: pct,
-                size: 108,
-                stroke: 9,
-                color: RC.purple,
-                center: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('${(pct * 100).round()}%',
-                        style: const TextStyle(
-                            fontSize: 26, fontWeight: FontWeight.w800)),
-                    Text(t('Bitti', 'Done'),
-                        style: TextStyle(color: RC.muted, fontSize: 12)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RichText(
-                      text: TextSpan(children: [
-                        TextSpan(
-                            text: '$done',
-                            style: TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.w800,
-                                color: RC.text)),
-                        TextSpan(
-                            text: ' / $total',
-                            style: TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.w800,
-                                color: RC.muted)),
-                      ]),
-                    ),
-                    Text(t('alışkanlık tamam', 'habits completed'),
-                        style: RText.muted),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(99),
-                      child: LinearProgressIndicator(
-                        value: pct,
-                        minHeight: 8,
-                        backgroundColor: RC.card2,
-                        valueColor: AlwaysStoppedAnimation(RC.purple),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                        t('${habitsRemaining(done, total)} alışkanlık kaldı',
-                            '${habitsRemaining(done, total)} habits remaining'),
-                        style: TextStyle(color: RC.muted, fontSize: 13)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        _progressCard(done: done, total: total, pct: pct),
         const SizedBox(height: 14),
 
         // ---- 3 stat chip ----
@@ -230,25 +165,31 @@ class HomeScreen extends StatelessWidget {
           ),
         const SizedBox(height: 18),
 
-        // ---- Günün Sözü (her gün otomatik değişir, bkz. quotes.dart) ----
-        RCard(
-          color: RC.tintPurple,
-          border: RC.strokeSoft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('"${t(dailyQuote.tr, dailyQuote.en)}"',
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontStyle: FontStyle.italic,
-                      color: RC.text,
-                      height: 1.4)),
-              const SizedBox(height: 12),
-              Text(t('Günün Sözü', 'Quote of the Day'), style: RText.muted),
-            ],
-          ),
-        ),
+        _quoteCard(),
       ],
+    );
+  }
+
+
+  /// Günün sözü — quotes.dart'tan her gün otomatik değişir.
+  Widget _quoteCard() {
+    final dailyQuote = quoteOfTheDay();
+    return RCard(
+        color: RC.tintPurple,
+        border: RC.strokeSoft,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('"${t(dailyQuote.tr, dailyQuote.en)}"',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontStyle: FontStyle.italic,
+                    color: RC.text,
+                    height: 1.4)),
+            const SizedBox(height: 12),
+            Text(t('Günün Sözü', 'Quote of the Day'), style: RText.muted),
+          ],
+        ),
     );
   }
 
@@ -262,6 +203,78 @@ class HomeScreen extends StatelessWidget {
           border: Border.all(color: RC.stroke),
         ),
         child: Icon(icon, size: 22, color: RC.amber),
+      );
+
+
+  /// Günün ilerleme kartı: halka + sayaç + çubuk.
+  Widget _progressCard({
+    required int done,
+    required int total,
+    required double pct,
+  }) =>
+      RCard(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            ProgressRing(
+              value: pct,
+              size: 108,
+              stroke: 9,
+              color: RC.purple,
+              center: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${(pct * 100).round()}%',
+                      style: const TextStyle(
+                          fontSize: 26, fontWeight: FontWeight.w800)),
+                  Text(t('Bitti', 'Done'),
+                      style: TextStyle(color: RC.muted, fontSize: 12)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: TextSpan(children: [
+                      TextSpan(
+                          text: '$done',
+                          style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              color: RC.text)),
+                      TextSpan(
+                          text: ' / $total',
+                          style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                              color: RC.muted)),
+                    ]),
+                  ),
+                  Text(t('alışkanlık tamam', 'habits completed'),
+                      style: RText.muted),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: pct,
+                      minHeight: 8,
+                      backgroundColor: RC.card2,
+                      valueColor: AlwaysStoppedAnimation(RC.purple),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                      t('${habitsRemaining(done, total)} alışkanlık kaldı',
+                          '${habitsRemaining(done, total)} habits remaining'),
+                      style: TextStyle(color: RC.muted, fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+        ),
       );
 
   Widget _stat(IconData icon, String big, String sub, Color color, Color tint) {
