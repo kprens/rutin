@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import '../ads.dart';
 import '../analytics.dart';
-import '../home_widget_service.dart' as hw;
 import '../l10n.dart';
 import '../store.dart';
 import 'rutin_ui.dart';
@@ -90,7 +89,7 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
       state.dailyRollover();
       // Uygulama arka plandayken widget'ta yapılmış olabilecek dokunmaları
       // (bkz. home_widget_service.dart) gerçek görev listesine işler.
-      hw.applyPendingWidgetToggles(state);
+      state.applyPendingWidgetToggles();
       Analytics.instance.log(Ev.appOpen);
     } else if (s == AppLifecycleState.paused) {
       // Bekleyen ölçüm olaylarını arka plana geçmeden gönder; aksi halde

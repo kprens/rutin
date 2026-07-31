@@ -10,6 +10,10 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:rutin/home_widget_service.dart';
+import 'package:rutin/models.dart';
+import 'package:rutin/notifications.dart';
+import 'package:rutin/repository.dart';
+import 'package:rutin/store.dart';
 
 void main() {
   group('toggleWidgetTasks — bozuk veriye dayanıklılık', () {
@@ -91,4 +95,61 @@ void main() {
       expect(r.list, isEmpty);
     });
   });
+
+  // WIDGET ANLIK GÖRÜNTÜSÜ — sayaç semantiği.
+  //
+  // Widget en fazla 5 satır gösterir ama ÖZET GÜNÜN TAMAMINI anlatmalı.
+  // Eski kod payı günün tüm tamamlananlarından, paydayı ise gösterilen
+  // satır sayısından alıyordu: 8 görevden 6'sı bitmişse widget "6/5"
+  // gösteriyordu. Bu testler o karışımın geri gelmesini engeller.
+  group('AppState.widgetSnapshot — satırlar kırpılır, sayaç kırpılmaz', () {
+    AppState stateWith({required int taskCount, required int doneCount}) {
+      final s = AppState(
+        repo: _NullRepository(),
+        notifications: NotificationService(),
+      );
+      s.tasks = [
+        for (var i = 1; i <= taskCount; i++) TaskItem(id: i, name: 'Görev $i'),
+      ];
+      s.doneByDate[todayKey()] = [for (var i = 1; i <= doneCount; i++) i];
+      return s;
+    }
+
+    test('5 satırdan fazlası kırpılır', () {
+      final snap = stateWith(taskCount: 8, doneCount: 6).widgetSnapshot();
+      expect(snap.tasks.length, maxWidgetTasks);
+    });
+
+    test('sayaç GÜNÜN tamamını gösterir — kırpılan listeyi değil', () {
+      final snap = stateWith(taskCount: 8, doneCount: 6).widgetSnapshot();
+      expect(snap.doneToday, 6);
+      expect(snap.totalToday, 8,
+          reason: 'payda gösterilen 5 satır değil, günün tüm görevleri olmalı');
+      // Regresyonun kendisi: pay paydadan büyük çıkamaz.
+      expect(snap.doneToday, lessThanOrEqualTo(snap.totalToday),
+          reason: 'widget "6/5" gibi anlamsız bir özet göstermemeli');
+    });
+
+    test('5 görevden azsa hepsi gösterilir ve sayaç tutar', () {
+      final snap = stateWith(taskCount: 3, doneCount: 2).widgetSnapshot();
+      expect(snap.tasks.length, 3);
+      expect(snap.doneToday, 2);
+      expect(snap.totalToday, 3);
+    });
+
+    test('tamamlanma bayrağı satır bazında doğru', () {
+      final snap = stateWith(taskCount: 4, doneCount: 2).widgetSnapshot();
+      expect(snap.tasks.where((t) => t.done).map((t) => t.id), [1, 2]);
+      expect(snap.tasks.where((t) => !t.done).map((t) => t.id), [3, 4]);
+    });
+  });
+}
+
+/// Hiçbir şey yapmayan depo — bu testler yalnızca bellek içi durumu okuyor.
+class _NullRepository implements Repository {
+  @override
+  Future<LoadResult> loadAll() async => const LoadResult.missing();
+
+  @override
+  Future<void> saveAll(Map<String, dynamic> data) async {}
 }

@@ -412,8 +412,12 @@ class AppState extends ChangeNotifier {
     } catch (_) {
       // Bildirimler bu oturumda kurulamadı; uygulama normal devam eder.
     }
-    await hw.applyPendingWidgetToggles(this);
-    unawaited(hw.syncHomeWidget(this));
+    await applyPendingWidgetToggles();
+    unawaited(() {
+      final snap = widgetSnapshot();
+      return hw.syncHomeWidget(snap.tasks,
+          doneToday: snap.doneToday, totalToday: snap.totalToday);
+    }());
     notifyListeners();
   }
 
@@ -758,7 +762,11 @@ class AppState extends ChangeNotifier {
       // belge yazıp hesabını kalıcı olarak boşaltmak olurdu. Veri yazmadan
       // çık; bağlantı geri geldiğinde bir sonraki açılış/kayıt senkronlar.
       notifyListeners();
-      unawaited(hw.syncHomeWidget(this));
+      unawaited(() {
+      final snap = widgetSnapshot();
+      return hw.syncHomeWidget(snap.tasks,
+          doneToday: snap.doneToday, totalToday: snap.totalToday);
+    }());
       return;
     }
     if (cloudResult.data != null) {
@@ -767,7 +775,11 @@ class AppState extends ChangeNotifier {
       await _save();
       // Yeni/boş hesap: load() çalışmadığı için widget'ı burada temizle,
       // aksi halde önceki hesabın görevleri ana ekranda asılı kalır.
-      unawaited(hw.syncHomeWidget(this));
+      unawaited(() {
+      final snap = widgetSnapshot();
+      return hw.syncHomeWidget(snap.tasks,
+          doneToday: snap.doneToday, totalToday: snap.totalToday);
+    }());
     }
     notifyListeners();
     unawaited(Iap.instance.restore());
@@ -846,7 +858,11 @@ class AppState extends ChangeNotifier {
       changed = true;
     }
     if (changed) _save();
-    unawaited(hw.syncHomeWidget(this));
+    unawaited(() {
+      final snap = widgetSnapshot();
+      return hw.syncHomeWidget(snap.tasks,
+          doneToday: snap.doneToday, totalToday: snap.totalToday);
+    }());
   }
 
   // ---------- Streak ----------
@@ -1026,6 +1042,55 @@ class AppState extends ChangeNotifier {
   List<int> get _todaysDoneMut => doneByDate.putIfAbsent(todayKey(), () => []);
 
   /// Bugün geçerli görevler (güne özel görevler filtrelenir).
+  /// Ana ekran widget'ına gönderilecek anlık görüntü.
+  ///
+  /// @visibleForTesting: sayaç semantiği (gün geneli vs. gösterilen satırlar)
+  /// bir kez yanlış kurulduğu ve widget "6/5" gösterdiği için teste bağlandı.
+  ///
+  /// Widget servisi `AppState`'i BİLMİYOR (bkz. home_widget_service.dart —
+  /// döngüsel bağımlılık kırıldı); ona düz veri veriliyor. Kırpma burada
+  /// yapılıyor çünkü "widget kaç görev gösterir" bir sunum kararı ve o bilgi
+  /// servisin sabitinde duruyor.
+  @visibleForTesting
+  hw.WidgetSnapshot widgetSnapshot() {
+    final all = todaysTasks;
+    final doneIds = todaysDone.toSet();
+    return hw.WidgetSnapshot(
+      tasks: all
+          .take(hw.maxWidgetTasks)
+          .map((t) => hw.WidgetTask(
+                id: t.id,
+                name: t.name,
+                emoji: t.emoji,
+                done: doneIds.contains(t.id),
+              ))
+          .toList(),
+      // Sayaç GÜNÜN tamamını anlatır, gösterilen 5 satırı değil.
+      doneToday: doneIds.length,
+      totalToday: all.length,
+    );
+  }
+
+  /// Widget'ta biriken bekleyen dokunmaları gerçek görevlere işler.
+  ///
+  /// Servis geri çağrımla çalışıyor (döngüsel bağımlılık kırıldı); bu
+  /// bağlantıyı kurmak AppState'in işi. Çağıranların — boot() ve
+  /// root_shell'in yaşam döngüsü kancası — geri çağrım kurulumunu bilmesi
+  /// gerekmiyor.
+  Future<void> applyPendingWidgetToggles() => hw.applyPendingWidgetToggles(
+        onToggle: _toggleTaskById,
+        snapshot: widgetSnapshot,
+      );
+
+  /// Widget'tan gelen bekleyen dokunmayı gerçek göreve bağlar.
+  ///
+  /// Kimlik artık bir göreve karşılık gelmiyorsa (kullanıcı görevi silmiş,
+  /// widget eski listeyi gösteriyor) sessizce yok sayılır.
+  void _toggleTaskById(int id) {
+    final matches = tasks.where((t) => t.id == id);
+    if (matches.isNotEmpty) toggleTask(matches.first);
+  }
+
   List<TaskItem> get todaysTasks =>
       tasks.where((t) => t.activeOn(mondayIndex(DateTime.now()))).toList();
 
@@ -1136,7 +1201,11 @@ class AppState extends ChangeNotifier {
     }
     _scheduleEvening();
     _save();
-    unawaited(hw.syncHomeWidget(this));
+    unawaited(() {
+      final snap = widgetSnapshot();
+      return hw.syncHomeWidget(snap.tasks,
+          doneToday: snap.doneToday, totalToday: snap.totalToday);
+    }());
     notifyListeners();
   }
 
@@ -1462,7 +1531,11 @@ class AppState extends ChangeNotifier {
     // Ana ekran widget'ı ayrı bir depoda (SharedPreferences/App Group)
     // yaşıyor; temizlenmezse çıkış yapan kullanıcının alışkanlık isimleri
     // telefonun ana ekranında görünmeye devam ederdi.
-    unawaited(hw.syncHomeWidget(this));
+    unawaited(() {
+      final snap = widgetSnapshot();
+      return hw.syncHomeWidget(snap.tasks,
+          doneToday: snap.doneToday, totalToday: snap.totalToday);
+    }());
     notifyListeners();
   }
 
@@ -1483,7 +1556,11 @@ class AppState extends ChangeNotifier {
     await _save();
     await notifications.cancelAllReminders();
     // Hesap silindi — widget'taki kalıntı veriyi de temizle (bkz. signOut).
-    unawaited(hw.syncHomeWidget(this));
+    unawaited(() {
+      final snap = widgetSnapshot();
+      return hw.syncHomeWidget(snap.tasks,
+          doneToday: snap.doneToday, totalToday: snap.totalToday);
+    }());
     notifyListeners();
     return serverDeleted;
   }

@@ -27,8 +27,21 @@ import 'dart:convert';
 
 import 'package:home_widget/home_widget.dart';
 
-import 'store.dart';
-
+/// DİKKAT — bu dosya `store.dart`'ı BİLEREK import etmez.
+///
+/// Eskiden ediyordu ve iki dosya birbirini import ediyordu (döngüsel
+/// bağımlılık): servis `AppState` alıyordu, `AppState` de servisi 7 yerden
+/// çağırıyordu. Döngü iki somut soruna yol açıyordu:
+///
+///   • Servis, uygulamanın TÜM durum sınıfına bağlıydı; oysa ihtiyacı olan
+///     yalnızca bir görev listesi. Bu yüzden `AppState` kurmadan test
+///     edilemiyordu — üstelik bu dosya arka plan izolatından da çalışıyor,
+///     yani orada tam bir AppState hiç yok.
+///   • Değişikliklerin etkisi izlenemiyordu: widget'a dokunan bir düzenleme
+///     store'u, store'a dokunan bir düzenleme widget'ı etkileyebiliyordu.
+///
+/// Bağımlılık ters çevrildi: burası düz veri ([WidgetTask]) ve geri çağrım
+/// alır, `AppState`'i hiç tanımaz. Yön artık tek: store → servis.
 const _kTasksKey = 'rutin_widget_tasks';
 const _kPendingKey = 'rutin_widget_pending_toggles';
 const _kAndroidWidgetName = 'HabitWidgetProvider';
@@ -60,28 +73,75 @@ Future<void> initHomeWidget() async {
   }
 }
 
-/// AppState'teki güncel görev listesini widget'ın kendi deposuna yazar ve
-/// native tarafın yeniden çizmesini ister. store.dart; toggleTask(), load()
-/// ve dailyRollover() sonunda bunu çağırır.
+/// Widget'ta gösterilecek tek bir görev — servisin uygulama durumundan
+/// ihtiyaç duyduğu ALANLARIN TAMAMI.
+///
+/// `TaskItem` yerine ayrı bir tip olması bilinçli: servis o zaman
+/// `store.dart`'a bağlanır ve döngü geri gelir. Buradaki dar yüzey aynı
+/// zamanda sözleşmeyi görünür kılıyor — widget'ın kullanıcı verisinden
+/// yalnızca bu dört alanı gördüğü tek bakışta okunuyor.
+class WidgetTask {
+  const WidgetTask({
+    required this.id,
+    required this.name,
+    required this.emoji,
+    required this.done,
+  });
+
+  final int id;
+  final String name;
+  final String emoji;
+  final bool done;
+}
+
+/// Widget'ı çizmek için gereken her şey: gösterilecek satırlar ve GÜNÜN
+/// gerçek ilerlemesi. İkisi ayrı çünkü satırlar kırpılmış, sayaç değil.
+class WidgetSnapshot {
+  const WidgetSnapshot({
+    required this.tasks,
+    required this.doneToday,
+    required this.totalToday,
+  });
+
+  final List<WidgetTask> tasks;
+  final int doneToday;
+  final int totalToday;
+}
+
+/// Güncel görev listesini widget'ın kendi deposuna yazar ve native tarafın
+/// yeniden çizmesini ister. store.dart; toggleTask(), load() ve
+/// dailyRollover() sonunda bunu çağırır.
+///
+/// [tasks] ÇAĞIRAN tarafından kırpılmış gelmeli (bkz. [maxWidgetTasks]).
+///
+/// [doneToday] / [totalToday] ise GÜNÜN TAMAMINI anlatır, gösterilen
+/// satırları değil — ayrı parametre olmalarının sebebi bu.
+///
+/// Eski kod payı günün TÜM tamamlananlarından, paydayı ise widget'ta
+/// görünen en fazla 5 satırdan alıyordu. 8 görevden 6'sı bitmişse widget
+/// "6/5" gösteriyordu. Sayaç artık iki ucunu da aynı kümeden alıyor.
+///
 /// (Widget platformu yoksa/başarısızsa sessizce yok sayılır — bkz.
 /// [initHomeWidget]'teki açıklama; bu fonksiyon store.dart'ta her veri
 /// değişiminde çağrıldığı için burada fırlayan bir hata uygulamanın normal
 /// akışını bozmamalı.)
-Future<void> syncHomeWidget(AppState s) async {
+Future<void> syncHomeWidget(
+  List<WidgetTask> tasks, {
+  required int doneToday,
+  required int totalToday,
+}) async {
   try {
-    final today = s.todaysTasks.take(maxWidgetTasks).toList();
-    final doneIds = s.todaysDone.toSet();
-    final list = today
+    final list = tasks
         .map((t) => {
               'id': t.id,
               'name': t.name,
               'emoji': t.emoji.isNotEmpty ? t.emoji : '✅',
-              'done': doneIds.contains(t.id),
+              'done': t.done,
             })
         .toList();
     await HomeWidget.saveWidgetData(_kTasksKey, jsonEncode(list));
     await HomeWidget.saveWidgetData(
-        'rutin_widget_summary', '${doneIds.length}/${today.length}');
+        'rutin_widget_summary', '$doneToday/$totalToday');
     await HomeWidget.updateWidget(
         androidName: _kAndroidWidgetName, iOSName: _kIosWidgetName);
   } catch (_) {
@@ -95,7 +155,16 @@ Future<void> syncHomeWidget(AppState s) async {
 /// (Widget platformu yoksa/başarısızsa sessizce yok sayılır — bu fonksiyon
 /// AppState.load() içinde AWAIT ediliyor, dolayısıyla buradan fırlayan bir
 /// hata tüm veri yüklemesini ve uygulama açılışını bozardı.)
-Future<void> applyPendingWidgetToggles(AppState s) async {
+/// [onToggle] her bekleyen görev kimliği için çağrılır; o kimliği gerçekten
+/// işaretlemek çağıranın (store) işi. Servis görev listesini tanımadığı için
+/// eşleştirmeyi de yapamaz — döngüyü kıran nokta tam olarak burası.
+///
+/// [snapshot] işlem bittikten sonraki güncel durumu döndürmeli; widget
+/// onunla yeniden çizilir.
+Future<void> applyPendingWidgetToggles({
+  required void Function(int taskId) onToggle,
+  required WidgetSnapshot Function() snapshot,
+}) async {
   String? raw;
   try {
     raw = await HomeWidget.getWidgetData<String>(_kPendingKey);
@@ -112,15 +181,16 @@ Future<void> applyPendingWidgetToggles(AppState s) async {
   for (final idRaw in ids) {
     final id = idRaw is int ? idRaw : int.tryParse('$idRaw');
     if (id == null) continue;
-    final matches = s.tasks.where((t) => t.id == id);
-    if (matches.isNotEmpty) s.toggleTask(matches.first);
+    onToggle(id);
   }
   try {
     await HomeWidget.saveWidgetData(_kPendingKey, '[]');
   } catch (_) {
     // yok sayılır
   }
-  await syncHomeWidget(s);
+  final snap = snapshot();
+  await syncHomeWidget(snap.tasks,
+      doneToday: snap.doneToday, totalToday: snap.totalToday);
 }
 
 /// Widget'a dokunulduğunda tetiklenir — AYRI/minimal bir Flutter motorunda
