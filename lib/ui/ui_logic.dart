@@ -631,7 +631,13 @@ bool _hasRecoveryNamed(AppState s, List<String> keys, int minDays) {
   return false;
 }
 
-/// Gerçek veriye göre 12 rozetin kazanılma durumunu değerlendirir.
+/// Gerçek kullanıcı verisine göre rozetlerin kazanılma durumunu değerlendirir.
+///
+/// Kazanılmayanlar da listeye girer: arayüz onları soluk gösterip hedef
+/// olarak sunuyor.
+///
+/// (Yorum eskiden "12 rozet" diyordu; liste zamanla büyüdü ve sayı yanlış
+/// kaldı. Sayı burada tekrar edilmiyor — kodda zaten görünüyor.)
 List<EarnedBadge> evaluateBadges(AppState s) {
   final anyTaskDone = s.doneByDate.values.any((l) => l.isNotEmpty);
   final maxHabit = s.maxHabitStreak;
