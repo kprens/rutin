@@ -119,7 +119,8 @@ class SettingsScreen extends StatelessWidget {
                       t('Verini Dışa Aktar', 'Export Data'),
                       t('Alışkanlık geçmişini indir',
                           'Download your habit history'),
-                      () => Share.share(s.exportJson()),
+                      () => SharePlus.instance
+                          .share(ShareParams(text: s.exportJson())),
                     ),
                     // Abonelik yönetimi yalnızca Pro'su olana gösterilir —
                     // hiç satın alma yapmamış kullanıcıya boş bir mağaza

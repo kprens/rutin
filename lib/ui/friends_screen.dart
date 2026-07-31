@@ -237,9 +237,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         IconButton(
                           tooltip: t('Paylaş', 'Share'),
                           icon: Icon(Icons.ios_share, color: RC.purpleBright),
-                          onPressed: () => Share.share(t(
-                              'Rutin\'de arkadaşım ol! Kodum: ${s.myFriendCode}',
-                              'Be my accountability partner on Rutin! My code: ${s.myFriendCode}')),
+                          onPressed: () => SharePlus.instance.share(
+                            ShareParams(
+                              text: t(
+                                  'Rutin\'de arkadaşım ol! Kodum: ${s.myFriendCode}',
+                                  'Be my accountability partner on Rutin! My code: ${s.myFriendCode}'),
+                            ),
+                          ),
                         ),
                       ],
                     ],
