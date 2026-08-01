@@ -263,10 +263,18 @@ class AnalyticsScreen extends StatelessWidget {
     );
   }
 
+  /// Isı haritası kademesi (0 = hiç aktivite yok, 4 = en yoğun).
+  ///
+  /// 0 kademesi eskiden sabit `0xFF14161F` idi — koyu tema kalıntısı. Açık
+  /// temada (varsayılan) simsiyah bir kare olarak çıkıyordu: hem ızgarada
+  /// boş günler kömür lekesi gibi görünüyordu hem de "Az → Çok" göstergesi
+  /// HER ZAMAN 0'ı çizdiği için siyah kare, hiç boş gün olmayan kullanıcıda
+  /// bile ekranda duruyordu. Artık zeminden türetiliyor: 20 tema/mod
+  /// kombinasyonunun hepsinde "boş" doğru okunuyor.
   Color _heatColor(int v) {
     switch (v) {
       case 0:
-        return const Color(0xFF14161F);
+        return Color.alphaBlend(RC.purple.withValues(alpha: 0.06), RC.card);
       case 1:
         return RC.purple.withValues(alpha: 0.25);
       case 2:

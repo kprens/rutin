@@ -43,8 +43,15 @@ class RecoveryScreen extends StatelessWidget {
                     _impact('$totalDays', t('toplam temiz gün', 'days clean total'),
                         RC.teal),
                     _divider(),
-                    _impact('\$${totalMoney.toStringAsFixed(0)}',
-                        t('biriken para', 'money saved'), RC.teal),
+                    // Para birimi dile bağlı: aynı tutar ana sayfada,
+                    // haftalık raporda ve kriz ekranında ₺ ile gösteriliyordu,
+                    // burada sabit $ ile. Türkçe kullanan biri aynı rakamı iki
+                    // farklı birimde görüyordu.
+                    _impact(
+                        t('₺${totalMoney.toStringAsFixed(0)}',
+                            '\$${totalMoney.toStringAsFixed(0)}'),
+                        t('biriken para', 'money saved'),
+                        RC.teal),
                     _divider(),
                     _impact('${totalHours.toStringAsFixed(0)}s',
                         t('geri kazanılan', 'time reclaimed'), RC.purpleBright),
@@ -217,7 +224,11 @@ class RecoveryScreen extends StatelessWidget {
               Row(
                 children: [
                   if (r.dailyCost > 0) ...[
-                    _tag(Icons.savings_rounded, '\$${r.moneySaved.toStringAsFixed(0)}', RC.teal),
+                    _tag(
+                        Icons.savings_rounded,
+                        t('₺${r.moneySaved.toStringAsFixed(0)}',
+                            '\$${r.moneySaved.toStringAsFixed(0)}'),
+                        RC.teal),
                     const SizedBox(width: 18),
                   ],
                   if (r.dailyHours > 0) ...[

@@ -190,9 +190,19 @@ class ProfileScreen extends StatelessWidget {
         _menu(context, Icons.people_alt_rounded, t('Arkadaşlar', 'Friends'),
             const FriendsScreen()),
         const SizedBox(height: 12),
-        _menu(context, Icons.diamond_rounded, t('Pro\'ya Geç', 'Go Premium'),
+        // Pro üyeye "Pro'ya Geç" denmez: aynı ekranda "Pro Üye" rozeti dururken
+        // vurgulu bir satır ödemiş kullanıcıyı tekrar satın almaya çağırıyordu.
+        // Paywall zaten abone için "Pro aktif" durumunu gösteriyor
+        // (paywall_screen.dart:414) — burada da abonelik yönetimi girişi olarak
+        // adlandırılıyor ve vurgu kaldırılıyor.
+        _menu(
+            context,
+            Icons.diamond_rounded,
+            s.isPro
+                ? t('Pro Üyeliğin', 'Your Pro Membership')
+                : t('Pro\'ya Geç', 'Go Premium'),
             const PaywallScreen(source: 'profile'),
-            highlight: true),
+            highlight: !s.isPro),
         const SizedBox(height: 12),
         _menu(context, Icons.settings_rounded, t('Ayarlar', 'Settings'), const SettingsScreen()),
         const SizedBox(height: 12),
