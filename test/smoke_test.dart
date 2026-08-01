@@ -226,6 +226,36 @@ void main() {
       expect(padding.right, 20);
     });
 
+    /// [size] mantıksal ekran boyutu.
+    Future<void> expectFullWidthBarrier(WidgetTester tester, Size size) async {
+      tester.view.physicalSize = size * 2;
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+            value: _appState(), child: const RutinApp()),
+      );
+      await tester.pumpAndSettle();
+
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      unawaited(showDialog<void>(
+        context: navigator.context,
+        builder: (_) => const AlertDialog(content: Text('test')),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(tester.getSize(find.byType(ModalBarrier).last).width, size.width,
+          reason: 'perde ekrandan darsa kenarlara dokunmak hiçbir şey yapmaz');
+    }
+
+    smokeTest('iPad YATAYDA modal perdesi tüm ekranı kaplar', (tester) async {
+      // Yatayda içerik 560pt, ekran 1180pt — ölü alan her yanda ~310pt
+      // olurdu. Reddin en ağır hali burasıydı.
+      await expectFullWidthBarrier(tester, const Size(1180, 820));
+    });
+
     smokeTest('iPad\'de modal perdesi TÜM ekranı kaplar', (tester) async {
       // App Store 2.1(a) reddinin regresyon kilidi:
       //   "The app became unresponsive when tapping anywhere."

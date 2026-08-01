@@ -544,14 +544,24 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   decoration: TextDecoration.underline,
                   decorationColor: RC.muted)),
         );
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    // ROW DEĞİL WRAP — bu satır App Store 3.1.2 altında ZORUNLU ve
+    // taşarsa kırpılır.
+    //
+    // `Row` ile iki bağlantı tek satıra zorlanıyordu. Dar bir telefonda
+    // (SE, 320pt) kullanıcı sistem yazı boyutunu büyüttüğünde
+    // "Gizlilik Politikası · Kullanım Koşulları" satıra sığmıyor ve
+    // RenderFlex taşması veriyor — testte 65 piksel ölçüldü. Taşan metin
+    // kırpılır; yani zorunlu yasal bağlantı okunamaz hale gelir.
+    //
+    // `Wrap` sığmadığında alt satıra geçer: hiçbir genişlikte kırpılmaz.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 4,
       children: [
         link(t('Gizlilik Politikası', 'Privacy Policy'), kPrivacyPolicyUrl),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text('·', style: TextStyle(color: RC.faint, fontSize: 12)),
-        ),
+        Text('·', style: TextStyle(color: RC.faint, fontSize: 12)),
         link(t('Kullanım Koşulları', 'Terms of Use'), kTermsOfUseUrl),
       ],
     );
@@ -679,13 +689,23 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(price,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: selected ? RC.purpleBright : RC.text,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800)),
+                // FLEXIBLE — fiyat mağazadan gelir, uzunluğu bilinmez.
+                //
+                // Para birimi ve biçim ülkeye göre değişiyor: "₺349,99"
+                // kısa ama "Rp 1.499.000" ya da "1 234,56 zł" çok daha uzun.
+                // Esnek olmayan bir Text, dar bir telefonda (SE) veya
+                // kullanıcı sistem yazısını büyüttüğünde satırı taşırır ve
+                // fiyat kırpılır — abonelik ekranında gösterilen fiyatın
+                // okunamaması hem dönüşümü hem uyumu vurur.
+                Flexible(
+                  child: Text(price,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: selected ? RC.purpleBright : RC.text,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800)),
+                ),
               ],
             ),
           ),
