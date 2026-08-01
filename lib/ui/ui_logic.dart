@@ -405,7 +405,11 @@ class _RecoverySheetState extends State<_RecoverySheet> {
                 Text(
                     _start == null
                         ? t('Bugün (varsayılan)', 'Today (default)')
-                        : '${_start!.day}.${_start!.month}.${_start!.year}',
+                        // Bkz. recovery_screen.dart _fmt: ABD'de ay önce gelir,
+                        // sabit g.a.yyyy İngilizcede yanlış okunuyor.
+                        : t(
+                            '${_start!.day}.${_start!.month}.${_start!.year}',
+                            '${_start!.month}/${_start!.day}/${_start!.year}'),
                     style: TextStyle(color: RC.text)),
               ],
             ),

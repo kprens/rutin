@@ -53,8 +53,14 @@ class RecoveryScreen extends StatelessWidget {
                         t('biriken para', 'money saved'),
                         RC.teal),
                     _divider(),
-                    _impact('${totalHours.toStringAsFixed(0)}s',
-                        t('geri kazanılan', 'time reclaimed'), RC.purpleBright),
+                    // "s" = saat; İngilizcede "h". Alttaki kart etiketi (aynı
+                    // ekranda, 235. satır) zaten t() ile ayırıyordu, burası
+                    // sabit Türkçe kısaltmayla kalmıştı.
+                    _impact(
+                        t('${totalHours.toStringAsFixed(0)}s',
+                            '${totalHours.toStringAsFixed(0)}h'),
+                        t('geri kazanılan', 'time reclaimed'),
+                        RC.purpleBright),
                   ],
                 ),
               ),
@@ -273,7 +279,13 @@ class RecoveryScreen extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime d) => '${d.day}.${d.month}.${d.year}';
+  /// Bırakma başlangıç tarihi.
+  ///
+  /// Sabit `g.a.yyyy` idi; İngilizce listelemede "Since 9.5.2026" 9 Mayıs mı
+  /// 5 Eylül mü belli olmuyordu (ABD'de ay önce gelir). Dile göre ayrılıyor:
+  /// Türkçe g.a.yyyy, İngilizce a/g/yyyy.
+  String _fmt(DateTime d) =>
+      t('${d.day}.${d.month}.${d.year}', '${d.month}/${d.day}/${d.year}');
 
   void _recoveryActions(BuildContext context, AppState s, Streak r) {
     showModalBottomSheet<void>(
