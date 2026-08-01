@@ -114,6 +114,30 @@ void main() {
       expect(isOfflineError(StateError('beklenmeyen durum')), isFalse);
     });
 
+    test('arka ucun GEÇİCİ olarak cevap verememesi de aynı sınıfta', () {
+      // Sahadan gelen gerçek metin (Sentry RUTIN-9, build 20). Kullanıcının
+      // ağı da uygulamanın kodu da sağlam; karşı taraf o an cevap vermiyor.
+      expect(
+        isOfflineError(
+            'PostgrestException(message: , code: 504, details: Gateway Timeout, hint: null)'),
+        isTrue,
+      );
+      expect(isOfflineError('code: 502 Bad Gateway'), isTrue);
+      expect(isOfflineError('code: 503 Service Unavailable'), isTrue);
+    });
+
+    test('SUNUCU HATASI (500) susturulmaz — geçici değil, gerçek arıza', () {
+      // 5xx'in tamamını yutmak, arka uçtaki gerçek bir çökmeyi görünmez
+      // yapardı. Yalnızca 502/503/504 geçici sayılıyor.
+      expect(
+        isOfflineError(
+            'PostgrestException(message: , code: 500, details: Internal Server Error)'),
+        isFalse,
+      );
+      expect(isOfflineError('code: 400 Bad Request'), isFalse);
+      expect(isOfflineError('code: 401 Unauthorized'), isFalse);
+    });
+
     test('çevrimdışı hata raporlamak da fırlatmaz', () {
       expect(
         () => reportError(

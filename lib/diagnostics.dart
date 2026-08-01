@@ -54,7 +54,38 @@ bool isOfflineError(Object error) {
       s.contains('Network is unreachable') ||
       s.contains('Connection refused') ||
       s.contains('Connection reset by peer') ||
-      s.contains('Connection closed before full header was received');
+      s.contains('Connection closed before full header was received') ||
+      _isTransientBackendError(s);
+}
+
+/// Sunucunun GEÇİCİ olarak yanıt verememesi.
+///
+/// Sahadan gelen örnek (Sentry RUTIN-9, build 20):
+///   PostgrestException(message: , code: 504, details: Gateway Timeout)
+///
+/// Bu, çevrimdışılıkla aynı sınıfta: kullanıcının ağı da uygulamanın kodu da
+/// sağlam, karşı taraf o an cevap vermiyor. Geliştiricinin yapabileceği bir
+/// şey yok, ama olay olarak raporlanınca gerçek hataların arasında gürültü
+/// yaratıyor ve "20 kullanıcıda hata var" gibi yanıltıcı bir tablo çiziyor.
+///
+/// Yok sayılmıyor — çevrimdışılıkta olduğu gibi BREADCRUMB olarak kaydediliyor;
+/// sonradan gerçek bir hata düşerse "o sırada arka uç 504 veriyordu" bilgisi
+/// izlerde duruyor.
+///
+/// 5xx'in tamamı değil, yalnızca GEÇİCİ olanlar: 500 (Internal Server Error)
+/// ve 501 bilinçli olarak DIŞARIDA — onlar sunucu tarafında gerçek bir hatayı
+/// gösterir ve görülmesi gerekir.
+bool _isTransientBackendError(String s) {
+  if (!s.contains('code: 502') &&
+      !s.contains('code: 503') &&
+      !s.contains('code: 504')) {
+    return false;
+  }
+  return s.contains('Gateway Timeout') ||
+      s.contains('Bad Gateway') ||
+      s.contains('Service Unavailable') ||
+      s.contains('PostgrestException') ||
+      s.contains('StorageException');
 }
 
 void reportError(
