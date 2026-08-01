@@ -131,12 +131,18 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 14,
-                  // Kart yüksekliği artırıldı (oran küçüldü): rozet adları ve
-                  // açıklamaları iki dilde farklı uzunlukta, ayrıca kullanıcı
-                  // sistem yazı boyutunu büyütmüş olabilir. Sabit yükseklikli
-                  // grid hücresinde metin taşıp "kayma"/overflow şeridi
-                  // çıkarıyordu.
-                  childAspectRatio: 0.72,
+                  // Yükseklik GENİŞLİKTEN bağımsız, YAZI ÖLÇEĞİNE bağlı.
+                  //
+                  // Oran kullanılırsa yükseklik genişliğe bağlanır ve iPad'de
+                  // kartlar ~1,5 kat uzayıp altlarında büyük boşluk bırakır
+                  // (Guideline 4 riski, paywall'da simülatörde görüldü).
+                  // Ama sabit puntolu yükseklik de tek başına yanlış olurdu:
+                  // rozet adları iki dilde farklı uzunlukta ve kullanıcı
+                  // sistem yazı boyutunu büyütmüş olabilir — daha önce tam
+                  // bu yüzden overflow şeridi çıkmıştı. Ölçekle çarpmak
+                  // ikisini birden çözüyor.
+                  mainAxisExtent:
+                      232 * MediaQuery.textScalerOf(context).scale(1),
                   children: shown.map(_badge).toList(),
                 ),
             ],

@@ -196,7 +196,9 @@ class _ThemesScreenState extends State<ThemesScreen> {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 14,
             crossAxisSpacing: 14,
-            childAspectRatio: 0.8,
+            // Yükseklik genişlikten bağımsız, yazı ölçeğine bağlı —
+            // iPad'de kart uzamaz, büyük yazıda taşmaz (bkz. paywall_screen).
+            mainAxisExtent: 210 * MediaQuery.textScalerOf(context).scale(1),
             children: rest.map((tm) {
               final pal = isDark ? tm.dark : tm.light;
               final selected = s.themeId == tm.id;

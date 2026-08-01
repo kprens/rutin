@@ -181,17 +181,34 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
               Text(t('Neler var', "What's included"), style: RText.title),
               const SizedBox(height: 14),
-              GridView.count(
-                crossAxisCount: 2,
+              // YÜKSEKLİK ORANLA DEĞİL, SABİT PUNTOYLA VERİLİYOR.
+              //
+              // Önce `childAspectRatio: 0.86` kullanılıyordu. Oran, hücre
+              // yüksekliğini GENİŞLİĞE bağlar; iPad'de içerik alanı telefona
+              // göre ~1,5 kat geniş olduğu için kartlar da 1,5 kat uzuyordu.
+              // Metin büyümediğinden her kartın altında yarısı kadar boş alan
+              // kalıyordu — iPad simülatöründe doğrulandı. App Store bu tür
+              // "telefon düzeninin iPad'e esnetilmiş hali" görüntüsünü
+              // Guideline 4 altında reddediyor (bu uygulama bir kez reddedildi).
+              //
+              // `mainAxisExtent` yüksekliği genişlikten bağımsız kılar: kart
+              // iPad'de genişler ama uzamaz. Değer, en dar telefonda (SE,
+              // 320pt) dört satırlık açıklamayı da alacak şekilde seçildi.
+              GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                // 4 madde = 2 satır. Açıklamalar öncekinden uzun olduğu için
-                // kartlar biraz daha yüksek (oran küçüldü) — kısa oranla
-                // metin taşıp overflow şeridi çıkıyordu.
-                childAspectRatio: 0.86,
-                children: _features.map(_feature).toList(),
+                itemCount: _features.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 14,
+                  // Yükseklik GENİŞLİKTEN bağımsız ama YAZI ÖLÇEĞİNE bağlı:
+                  // iPad'de kart uzamaz, kullanıcı sistem yazısını
+                  // büyüttüğünde ise metin taşmasın diye kart büyür.
+                  mainAxisExtent:
+                      178 * MediaQuery.textScalerOf(context).scale(1),
+                ),
+                itemBuilder: (_, i) => _feature(_features[i]),
               ),
               const SizedBox(height: 20),
 
