@@ -129,7 +129,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               await st.loadPanicSignals();
             },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+              padding: rContentPadding(context, const EdgeInsets.fromLTRB(20, 8, 20, 40)),
               children: [
                 rutinAppBar(context, t('Arkadaşlar', 'Friends')),
                 const SizedBox(height: 20),

@@ -26,7 +26,7 @@ class SettingsScreen extends StatelessWidget {
         decoration: BoxDecoration(gradient: RG.header),
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            padding: rContentPadding(context, const EdgeInsets.fromLTRB(20, 8, 20, 40)),
             children: [
               rutinAppBar(context, t('Ayarlar', 'Settings')),
               const SizedBox(height: 24),

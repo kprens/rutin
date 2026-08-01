@@ -58,7 +58,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         decoration: BoxDecoration(gradient: RG.header),
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            padding: rContentPadding(context, const EdgeInsets.fromLTRB(20, 8, 20, 40)),
             children: [
               rutinAppBar(context, t('Haftalık Rapor', 'Weekly Report')),
               const SizedBox(height: 6),

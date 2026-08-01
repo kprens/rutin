@@ -147,7 +147,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 40, 24, 40),
+            padding: rContentPadding(context, const EdgeInsets.fromLTRB(24, 40, 24, 40)),
             children: [
               Center(
                 child: Container(

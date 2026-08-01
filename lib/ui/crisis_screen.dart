@@ -196,7 +196,7 @@ class _CrisisScreenState extends State<CrisisScreen>
     // kazanım satırları küçük ekranlarda taşıp overflow şeridi çıkarırdı.
     // Kriz ekranı, hata göstermeye en az tolerans gösterilecek ekrandır.
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: rContentPadding(context, const EdgeInsets.all(24)),
       children: [
         Column(
           children: [

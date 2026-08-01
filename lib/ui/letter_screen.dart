@@ -56,7 +56,7 @@ class _LetterScreenState extends State<LetterScreen> {
         decoration: BoxDecoration(gradient: RG.header),
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            padding: rContentPadding(context, const EdgeInsets.fromLTRB(20, 8, 20, 40)),
             children: [
               rutinAppBar(context, t('Geleceğe Mektup', 'Letter to Future You')),
               const SizedBox(height: 18),

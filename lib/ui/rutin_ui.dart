@@ -698,6 +698,37 @@ Widget rutinAppBar(BuildContext context, String title) => Row(
     );
 
 /// Ekran içeriği için standart kaydırılabilir gövde (üstte hafif gradyan).
+/// Geniş ekranlarda (iPad) içeriğin uzayabileceği azami genişlik.
+///
+/// App Store, telefon için tasarlanmış ekranların iPad'de 820pt'ye yayılmasını
+/// Guideline 4 altında düşük kaliteli deneyim sayıp uygulamayı reddetmişti.
+const double kMaxContentWidth = 560;
+
+/// Kaydırma alanının kendi dolgusunu, içeriği [kMaxContentWidth] genişliğinde
+/// ORTALAYACAK şekilde büyütür.
+///
+/// NEDEN DOLGU, NEDEN SARMALAYICI DEĞİL — bu ayrım bir App Store reddine mal
+/// oldu (Guideline 2.1(a), "the app became unresponsive when tapping
+/// anywhere"):
+///
+/// Sınır önce `MaterialApp.builder` içinde, Navigator'ı `Center` +
+/// `ConstrainedBox` ile sararak uygulanıyordu. Görsel sonuç doğruydu ama
+/// Navigator'ın İÇİNDEKİ her şey de daralıyordu — sayfa geçişleri, diyaloglar
+/// ve en önemlisi MODAL PERDELER. iPad'de bir alt sayfa açıp kapatmak için
+/// dışına dokunan kullanıcı hiçbir şeye dokunmuş olmuyordu: perde ekranın
+/// yalnızca orta 560pt'sini kaplıyor, kalan ~130pt'lik (yatayda ~310pt)
+/// kenarlar tamamen ölüydü. Uygulama donmuş gibi görünüyordu.
+///
+/// Dolgu yaklaşımında kaydırma alanı TAM GENİŞLİKTE kalır — her yerden
+/// kaydırılır, her yere dokunulur — yalnızca içerik ortalanır. Navigator'a
+/// hiç dokunulmadığı için perdeler yine tüm ekranı kaplar.
+EdgeInsets rContentPadding(BuildContext context, EdgeInsets base) {
+  final extra =
+      ((MediaQuery.sizeOf(context).width - kMaxContentWidth) / 2)
+          .clamp(0.0, double.infinity);
+  return base.copyWith(left: base.left + extra, right: base.right + extra);
+}
+
 class RScreen extends StatelessWidget {
   final List<Widget> children;
   final EdgeInsets padding;
@@ -709,7 +740,9 @@ class RScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(gradient: RG.header),
-      child: ListView(padding: padding, children: children),
+      // Dolgu geniş ekranda büyür; ListView tam genişlikte kalır.
+      child: ListView(
+          padding: rContentPadding(context, padding), children: children),
     );
   }
 }

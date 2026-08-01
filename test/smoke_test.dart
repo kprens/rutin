@@ -34,6 +34,7 @@ import 'package:rutin/notifications.dart';
 import 'package:rutin/repository.dart';
 import 'package:rutin/store.dart';
 import 'package:rutin/ui/paywall_screen.dart';
+import 'package:rutin/ui/rutin_ui.dart';
 
 /// Mağaza katmanının test ikizi.
 ///
@@ -184,8 +185,58 @@ void main() {
 
     smokeTest('iPad genişliğinde içerik 560pt ile sınırlanır', (tester) async {
       // Guideline 4 reddinin sebebiydi: telefon için tasarlanmış ekranlar
-      // iPad'de 820pt'ye yayılıyordu. Sınır MaterialApp.builder'da tek
-      // noktadan uygulanıyor; kaldırılırsa bu test düşer.
+      // iPad'de 820pt'ye yayılıyordu. Sınır artık kaydırma alanının
+      // DOLGUSUNDA (bkz. rContentPadding), sarmalayıcıda değil.
+      tester.view.physicalSize = const Size(1640, 2360); // 820x1180 pt
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      late EdgeInsets padding;
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(builder: (context) {
+          padding = rContentPadding(context, const EdgeInsets.all(20));
+          return const SizedBox.shrink();
+        }),
+      ));
+
+      // 820 - 560 = 260, iki yana 130'ar. Taban dolgu 20 üstüne eklenir.
+      expect(padding.left, 150);
+      expect(padding.right, 150);
+      expect(padding.top, 20, reason: 'dikey dolgu değişmemeli');
+    });
+
+    smokeTest('telefon genişliğinde dolgu DEĞİŞMEZ', (tester) async {
+      // Sınır 560pt; en geniş iPhone ~440pt. Telefon düzeni bit düzeyinde
+      // bile etkilenmemeli.
+      tester.view.physicalSize = const Size(1170, 2532); // 390x844 pt
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      late EdgeInsets padding;
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(builder: (context) {
+          padding = rContentPadding(context, const EdgeInsets.all(20));
+          return const SizedBox.shrink();
+        }),
+      ));
+
+      expect(padding.left, 20);
+      expect(padding.right, 20);
+    });
+
+    smokeTest('iPad\'de modal perdesi TÜM ekranı kaplar', (tester) async {
+      // App Store 2.1(a) reddinin regresyon kilidi:
+      //   "The app became unresponsive when tapping anywhere."
+      //
+      // Genişlik sınırı `MaterialApp.builder` içinde Navigator'ı sararak
+      // uygulandığında modal perdeleri de daralıyordu: iPad'de bir alt sayfa
+      // açıp kapatmak için dışına dokunan kullanıcı hiçbir şeye dokunmuş
+      // olmuyor, uygulama donmuş gibi görünüyordu.
+      //
+      // Perde ekrandan darsa bu test DÜŞER.
+      const screen = Size(820, 1180);
       tester.view.physicalSize = const Size(1640, 2360);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -197,16 +248,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+      unawaited(showDialog<void>(
+        context: navigator.context,
+        builder: (_) => const AlertDialog(content: Text('test')),
+      ));
+      await tester.pumpAndSettle();
 
-      final constrained =
-          tester.widgetList<ConstrainedBox>(find.byType(ConstrainedBox));
-      expect(
-        constrained.any((c) => c.constraints.maxWidth == 560),
-        isTrue,
-        reason:
-            'iPad genişlik sınırı kaldırılmış — Guideline 4 riski geri geldi',
-      );
+      final barrier = find.byType(ModalBarrier).last;
+      expect(tester.getSize(barrier).width, screen.width,
+          reason: 'perde ekrandan darsa kenarlara dokunmak hiçbir şey yapmaz');
     });
   });
 

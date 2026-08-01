@@ -50,7 +50,7 @@ class _WaterScreenState extends State<WaterScreen> {
         decoration: BoxDecoration(gradient: RG.header),
         child: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            padding: rContentPadding(context, const EdgeInsets.fromLTRB(20, 8, 20, 40)),
             children: [
               rutinAppBar(context, t('Su Takibi', 'Water Tracker')),
               const SizedBox(height: 20),

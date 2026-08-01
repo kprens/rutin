@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'rutin_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n.dart';
@@ -91,7 +93,7 @@ class _ThemesScreenState extends State<ThemesScreen> {
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: rContentPadding(context, const EdgeInsets.fromLTRB(16, 8, 16, 24)),
         children: [
           Text(
             t('Rutin\'i sana en çok yakışan renklerle kullan.',

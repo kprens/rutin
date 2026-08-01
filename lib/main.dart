@@ -255,37 +255,29 @@ class RutinApp extends StatelessWidget {
       // bar vb.) hâlâ diğer moddadır — "açık temaya geçince her şey koyu
       // temaymış gibi görünme" hatasının kaynağı buydu.
       themeMode: s.darkMode ? ThemeMode.dark : ThemeMode.light,
-      // GENİŞ EKRANDA (iPad) İÇERİK GENİŞLİĞİNİ SINIRLA.
+      // BURADA GENİŞLİK SINIRI YOK — VE BU BİLİNÇLİ.
       //
-      // NEDEN: Uygulama iPad'de de sunuluyor (TARGETED_DEVICE_FAMILY = "1,2")
-      // ve Apple incelemeyi iPad Air'de yapıyor. Sınır olmadan telefon için
-      // tasarlanmış her ekran 820pt genişliğe yayılıyordu: tek bir metin
-      // kutusu ekranın tamamını kaplıyor, altta ekranın yarısı boş kalıyordu.
-      // App Store bunu Guideline 4 altında "beklenenden düşük kaliteli
-      // kullanıcı deneyimi" olarak değerlendiriyor ve ret mesajında iPad'e
-      // açıkça atıf yapıyor ("should function as expected for iPad users").
+      // iPad'de içeriği [kMaxContentWidth] ile sınırlamak gerekiyor (Guideline
+      // 4: telefon için tasarlanmış ekranlar 820pt'ye yayılınca "beklenenden
+      // düşük kaliteli deneyim" sayılıyor). Bu sınır bir süre TAM BURADA,
+      // `builder` içinde Navigator'ı `Center` + `ConstrainedBox` ile sararak
+      // uygulandı. Görsel sonuç doğruydu; sonuç bir sonraki ret oldu:
       //
-      // TEK NOKTADAN ÇÖZÜM: burada uygulanınca 24 ekranın tamamını kapsıyor;
-      // her ekranı tek tek düzenlemeye (ve 24 dosyada regresyon riskine)
-      // gerek kalmıyor.
+      //   Guideline 2.1(a) — "The app became unresponsive when tapping
+      //   anywhere." (iPad Air 11-inch M3)
       //
-      // Telefonda ETKİSİ YOK: en geniş iPhone ~440pt, sınır 560pt. Yani bu
-      // değişiklik telefon düzenini bit düzeyinde bile değiştirmez.
+      // Sebep: `builder`ın sardığı `child` NAVIGATOR'dır. Navigator daralınca
+      // içindeki her şey daralır — sayfalar, diyaloglar ve en kritiği MODAL
+      // PERDELER. iPad'de bir alt sayfa açıp kapatmak için dışına dokunan
+      // kullanıcı hiçbir şeye dokunmuş olmuyordu: perde ekranın yalnızca orta
+      // 560pt'sini kaplıyor, kenarlardaki ~130pt (yatayda ~310pt) tamamen
+      // ölüydü. Simülatörde birebir doğrulandı: alt sayfa açıkken sol boşluğa
+      // dokunmak ekranda tek pikseli değiştirmiyor.
       //
-      // Arka plan tam ekranı kaplamaya devam eder (ColoredBox dışta);
-      // yalnızca içerik ortalanır — kenarlarda boş/siyah şerit oluşmaz.
-      builder: (context, child) {
-        if (child == null) return const SizedBox.shrink();
-        return ColoredBox(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: child,
-            ),
-          ),
-        );
-      },
+      // Sınır artık kaydırma alanlarının DOLGUSUNDA (bkz. rContentPadding):
+      // ListView tam genişlikte kalır — her yerden kaydırılır, her yere
+      // dokunulur — yalnızca içerik ortalanır. Navigator'a hiç dokunulmadığı
+      // için perdeler tüm ekranı kaplar.
       home: s.onboarded ? const RootShell() : const OnboardingScreen(),
     );
   }
